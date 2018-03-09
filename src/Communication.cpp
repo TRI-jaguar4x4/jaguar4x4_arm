@@ -1,4 +1,10 @@
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <string>
 #include <stdexcept>
@@ -25,9 +31,30 @@ void Communication::connect(std::string& ip, uint16_t port)
   if (ipValidator(ip)) {
     throw std::runtime_error(ip + " not a valid IP address");
   }
+
+  struct sockaddr_in _addr;
+  memset(&_addr, 0, sizeof(_addr));
+  _addr.sin_family = AF_INET;
+  _addr.sin_port = htons(port);
+
+  if ( inet_aton(ip.c_str(), &_addr.sin_addr) == 0)
+  {
+    throw std::runtime_error(ip + " not a valid inet IP address");
+  }
+
+  //TCP
+  if ((fd_ = socket(PF_INET, SOCK_STREAM,IPPROTO_TCP)) < 0)
+  {
+    throw std::runtime_error("Failed to create socket");
+  }
+
+  //TCP, setup connection here
+  if (::connect(fd_, (struct sockaddr *) &_addr,sizeof(_addr)) < 0) {
+    throw std::runtime_error("Failed to connect with robot. IP address " + ip + " Port: " + std::to_string(port));
+   }
 }
 
-void Communication::sendCommand()
+void Communication::sendCommand(std::string& cmd)
 {
 }
 
