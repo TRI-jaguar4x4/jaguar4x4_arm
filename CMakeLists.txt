@@ -12,16 +12,25 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 include_directories(include)
 
-###add_executable(jaguar4x4_node src/jaguar4x4.cpp src/DrRobotMotionSensorDriver.cpp)
 add_library(jaguar4x4_arm_communication src/Communication.cpp src/ArmCommand.cpp)
-###ament_target_dependencies(jaguar4x4_node rclcpp std_msgs sensor_msgs geometry_msgs jaguar4x4_msgs Boost)
+add_executable(jaguar4x4_arm_node src/jaguar4x4_arm.cpp)
+target_link_libraries(jaguar4x4_arm_node jaguar4x4_arm_communication)
+ament_target_dependencies(jaguar4x4_arm_node rclcpp geometry_msgs)
 
-###install(TARGETS
-###  jaguar4x4_node
-###  DESTINATION lib/${PROJECT_NAME}
-###)
+install(TARGETS
+  jaguar4x4_arm_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS
+  jaguar4x4_arm_communication
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib
+)
 
 ament_package()

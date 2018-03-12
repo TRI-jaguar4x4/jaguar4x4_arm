@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <iostream>
 #include <string>
 #include <stdexcept>
 
@@ -14,13 +15,12 @@
 
 int Communication::ipValidator(const std::string& ip)
 {
-  unsigned int n1,n2,n3,n4;
-  if ( sscanf(ip.c_str(), "%u.%u.%u.%u", &n1,&n2,&n3,&n4) != 4 ) {
+  unsigned int n1, n2, n3, n4;
+  if (sscanf(ip.c_str(), "%u.%u.%u.%u", &n1,&n2,&n3,&n4) != 4) {
     return -1;
   }
   
-  if ((n1 != 0) && (n1 <= 255) && (n2 <= 255) && (n3 <= 255) && (n4 <= 255) )
-  {
+  if ((n1 != 0) && (n1 <= 255) && (n2 <= 255) && (n3 <= 255) && (n4 <= 255)) {
     return 0;
   }
 
@@ -38,25 +38,25 @@ void Communication::connect(const std::string& ip, uint16_t port)
   _addr.sin_family = AF_INET;
   _addr.sin_port = htons(port);
 
-  if ( inet_aton(ip.c_str(), &_addr.sin_addr) == 0)
-  {
+  if ( inet_aton(ip.c_str(), &_addr.sin_addr) == 0) {
     throw std::runtime_error(ip + " not a valid inet IP address");
   }
 
   //TCP
-  if ((fd_ = socket(PF_INET, SOCK_STREAM,IPPROTO_TCP)) < 0)
-  {
+  if ((fd_ = socket(PF_INET, SOCK_STREAM,IPPROTO_TCP)) < 0) {
     throw std::runtime_error("Failed to create socket");
   }
 
   //TCP, setup connection here
   if (::connect(fd_, (struct sockaddr *) &_addr,sizeof(_addr)) < 0) {
     throw std::runtime_error("Failed to connect with robot. IP address " + ip + " Port: " + std::to_string(port));
-   }
+  }
+
+  std::cerr << "Connected to " << ip << std::endl;
 }
 
 void Communication::sendCommand(const std::string& cmd)
-{ 
+{
   bool done = false;
   const char* cmd_progress = cmd.c_str();
   size_t len_to_send = cmd.length();
@@ -93,7 +93,7 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
   tv.tv_sec = 0;
   tv.tv_usec = timeout_msec*1000;
 
-  bool done=false;
+  bool done = false;
   while (!done) {
     int retval = select(fd_ + 1, &readfds, NULL, NULL, &tv);
     if (retval < 0) {

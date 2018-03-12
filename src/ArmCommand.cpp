@@ -17,7 +17,7 @@ void ArmCommand::moveArmUp(ArmCommand::Joint arm)
     arm_command.append("2");
   }
   arm_command.append(" -30\r");
-  
+
   comm_->sendCommand(arm_command);
 }
 
@@ -48,4 +48,4 @@ void ArmCommand::ping()
 {
   comm_->sendCommand("~MMOD\r");
 }
-    
+
