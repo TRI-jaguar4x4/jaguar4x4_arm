@@ -5,6 +5,8 @@
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
+#include "jaguar4x4_arm/ArmReceive.h"
+
 #include "jaguar4x4_arm/Communication.h"
 #include "rclcpp/rclcpp.hpp"
 
@@ -16,6 +18,7 @@ public:
   Jaguar4x4Arm(const std::string& ip, uint16_t port) : Node("jaguar4x4Arm"), recv_thread_()
   {
     lift_cmd_ = std::make_unique<ArmCommand>(&board_1_comm_);
+    lift_rcv_ = std::make_unique<ArmReceive>(&board_1_comm_);
     board_1_comm_.connect(ip, port);
     
     rmw_qos_profile_t z_position_qos_profile = rmw_qos_profile_sensor_data;
@@ -36,7 +39,8 @@ public:
 
     future_ = exit_signal_.get_future();
 
-    recv_thread_ = std::thread(&Jaguar4x4Arm::recvCallback,this,std::move(future_));
+    recv_thread_ = std::thread(&Jaguar4x4Arm::recvCallback, this,
+			       std::move(future_), std::move(lift_rcv_));
   }
 
   ~Jaguar4x4Arm()
@@ -68,15 +72,20 @@ private:
     }
   }
 
-  void recvCallback(std::future<void> future)
+  void recvCallback(std::future<void> local_future,
+		    std::unique_ptr<ArmReceive> lift_recv)
   {
     std::cerr << "entered the callback\n";
-    //    while (!future.valid()) {
     std::future_status status;
     do {
-         std::cerr << "we made it here\n";
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-      status = future.wait_for(std::chrono::seconds(0));
+      try {
+	lift_recv->getAndParseMessage();
+      }
+      catch (...) {
+	std::cerr << "threw\n";
+      }
+      
+      status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
     std::cerr << "no longer in while\n";    
   }
@@ -89,6 +98,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
   Communication board_1_comm_;
   std::unique_ptr<ArmCommand> lift_cmd_;
+  std::unique_ptr<ArmReceive> lift_rcv_;
   int64_t last_stamp_ = 0;
   rclcpp::TimerBase::SharedPtr timer_;
   std::thread recv_thread_;

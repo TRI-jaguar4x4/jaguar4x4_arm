@@ -116,6 +116,7 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       throw std::runtime_error("Failed to receive chunk: " + std::string(::strerror(errno)));
     }
     rcv_chunk[rcv_retval] = '\0';
+    std::cerr << rcv_chunk << "\n";
     rcv_str.append(rcv_chunk);
 
     // if we found a boundary, we're done
