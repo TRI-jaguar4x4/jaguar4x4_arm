@@ -10,5 +10,5 @@ class AbstractCommunication {
  public:
   virtual void connect(std::string& ip, uint16_t port) = 0;
   virtual void sendCommand(std::string& cmd) = 0;
-  virtual std::string recvMessage(std::string& boundary) = 0;
+  virtual std::string recvMessage(std::string& boundary, int timeout_msec) = 0;
 };
