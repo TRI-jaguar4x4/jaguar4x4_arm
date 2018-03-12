@@ -26,14 +26,32 @@ public:
   }
 
 private:
+  // clalancette: To test this currently, the following command-line can
+  // be used:
+  // ros2 topic pub /z_position geometry_msgs/PoseStamped "{header:{stamp:{sec: 4, nanosec: 14}, frame_id: 'frame'}, pose:{position:{x: 1, y: 2, z: 3}, orientation:{x: 4, y: 5, z: 6, w: 7}}}"
   void liftCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
   {
-    lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm);
+    int64_t this_stamp;
+    this_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+
+    if (this_stamp < last_stamp_) {
+      // An older command came through, just ignore it.  Note that we currently
+      // allow equal timestamps to make using the command-line easier.
+      return;
+    }
+    last_stamp_ = this_stamp;
+    if (msg->pose.position.z > 0) {
+      lift_cmd_->moveArmDown(ArmCommand::Joint::lower_arm);
+    }
+    else {
+      lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm);
+    }
   }
   
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
   Communication board_1_comm_;
   std::unique_ptr<ArmCommand> lift_cmd_;
+  int64_t last_stamp_;
 };
 
 int main(int argc, char * argv[])
