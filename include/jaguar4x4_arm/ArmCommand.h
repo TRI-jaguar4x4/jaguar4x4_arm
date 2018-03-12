@@ -19,5 +19,6 @@ class ArmCommand {
   void ping();
   
  private:
+  std::string buildArmCommand(ArmCommand::Joint arm, int value);
   AbstractCommunication* comm_; // shared ptr?
 };
