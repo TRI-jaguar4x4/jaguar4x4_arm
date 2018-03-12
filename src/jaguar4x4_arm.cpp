@@ -1,5 +1,7 @@
 #include <chrono>
+#include <future>
 #include <string>
+#include <thread>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
@@ -11,7 +13,7 @@ using namespace std::chrono_literals;
 class Jaguar4x4Arm : public rclcpp::Node
 {
 public:
-  Jaguar4x4Arm(const std::string& ip, uint16_t port) : Node("jaguar4x4Arm")
+  Jaguar4x4Arm(const std::string& ip, uint16_t port) : Node("jaguar4x4Arm"), recv_thread_()
   {
     lift_cmd_ = std::make_unique<ArmCommand>(&board_1_comm_);
     board_1_comm_.connect(ip, port);
@@ -28,11 +30,21 @@ public:
 	z_position_qos_profile);
 
     timer_ = this->create_wall_timer(
-      500ms, std::bind(&Jaguar4x4Arm::timer_callback, this));
+      500ms, std::bind(&Jaguar4x4Arm::timerCallback, this));
 
     lift_cmd_->resume();
+
+    future_ = exit_signal_.get_future();
+
+    recv_thread_ = std::thread(&Jaguar4x4Arm::recvCallback,this,std::move(future_));
   }
 
+  ~Jaguar4x4Arm()
+  {
+    exit_signal_.set_value();
+    recv_thread_.join();
+  }
+  
 private:
   // clalancette: To test this currently, the following command-line can
   // be used:
@@ -56,7 +68,20 @@ private:
     }
   }
 
-  void timer_callback()
+  void recvCallback(std::future<void> future)
+  {
+    std::cerr << "entered the callback\n";
+    //    while (!future.valid()) {
+    std::future_status status;
+    do {
+         std::cerr << "we made it here\n";
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      status = future.wait_for(std::chrono::seconds(0));
+    } while (status == std::future_status::timeout);
+    std::cerr << "no longer in while\n";    
+  }
+  
+  void timerCallback()
   {
     lift_cmd_->ping();
   }
@@ -66,6 +91,9 @@ private:
   std::unique_ptr<ArmCommand> lift_cmd_;
   int64_t last_stamp_ = 0;
   rclcpp::TimerBase::SharedPtr timer_;
+  std::thread recv_thread_;
+  std::promise<void> exit_signal_;
+  std::future<void> future_;
 };
 
 int main(int argc, char * argv[])
