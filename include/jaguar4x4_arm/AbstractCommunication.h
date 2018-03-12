@@ -8,7 +8,7 @@ class AbstractCommunication {
   // we probably want a disconnect... or do we want to connect
   // in the constructor, disconnect in the destructor?
  public:
-  virtual void connect(std::string& ip, uint16_t port) = 0;
-  virtual void sendCommand(std::string& cmd) = 0;
-  virtual std::string recvMessage(std::string& boundary, int timeout_msec) = 0;
+  virtual void connect(const std::string& ip, uint16_t port) = 0;
+  virtual void sendCommand(const std::string& cmd) = 0;
+  virtual std::string recvMessage(const std::string& boundary, int timeout_msec) = 0;
 };

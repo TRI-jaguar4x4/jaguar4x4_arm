@@ -12,7 +12,7 @@
 
 #include "jaguar4x4_arm/Communication.h"
 
-int Communication::ipValidator(std::string& ip)
+int Communication::ipValidator(const std::string& ip)
 {
   unsigned int n1,n2,n3,n4;
   if ( sscanf(ip.c_str(), "%u.%u.%u.%u", &n1,&n2,&n3,&n4) != 4 ) {
@@ -27,7 +27,7 @@ int Communication::ipValidator(std::string& ip)
   return -1;
 }
 
-void Communication::connect(std::string& ip, uint16_t port)
+void Communication::connect(const std::string& ip, uint16_t port)
 {
   if (ipValidator(ip)) {
     throw std::runtime_error(ip + " not a valid IP address");
@@ -55,7 +55,7 @@ void Communication::connect(std::string& ip, uint16_t port)
    }
 }
 
-void Communication::sendCommand(std::string& cmd)
+void Communication::sendCommand(const std::string& cmd)
 { 
   bool done = false;
   const char* cmd_progress = cmd.c_str();
@@ -79,7 +79,7 @@ void Communication::sendCommand(std::string& cmd)
   }
 }
 
-std::string Communication::recvMessage(std::string& boundary, int timeout_msec)
+std::string Communication::recvMessage(const std::string& boundary, int timeout_msec)
 {
   fd_set readfds;
 

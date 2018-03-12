@@ -6,10 +6,10 @@
 
 class Communication : public AbstractCommunication {
  public:
-  void connect(std::string& ip, uint16_t port) override;
-  void sendCommand(std::string& cmd) override;
-  std::string recvMessage(std::string& boundary, int timeout_msec) override;
+  void connect(const std::string& ip, uint16_t port) override;
+  void sendCommand(const std::string& cmd) override;
+  std::string recvMessage(const std::string& boundary, int timeout_msec) override;
  private:
-  int ipValidator(std::string& ip);
+  int ipValidator(const std::string& ip);
   int fd_;
 };
