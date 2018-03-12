@@ -1,7 +1,12 @@
+#include <chrono>
+#include <string>
+
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
 #include "jaguar4x4_arm/Communication.h"
 #include "rclcpp/rclcpp.hpp"
+
+using namespace std::chrono_literals;
 
 class Jaguar4x4Arm : public rclcpp::Node
 {
@@ -21,6 +26,9 @@ public:
 	"z_position", std::bind(&Jaguar4x4Arm::liftCallback,
 				this, std::placeholders::_1),
 	z_position_qos_profile);
+
+    timer_ = this->create_wall_timer(
+      500ms, std::bind(&Jaguar4x4Arm::timer_callback, this));
 
     lift_cmd_->resume();
   }
@@ -47,17 +55,23 @@ private:
       lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm);
     }
   }
-  
+
+  void timer_callback()
+  {
+    lift_cmd_->ping();
+  }
+
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
   Communication board_1_comm_;
   std::unique_ptr<ArmCommand> lift_cmd_;
-  int64_t last_stamp_;
+  int64_t last_stamp_ = 0;
+  rclcpp::TimerBase::SharedPtr timer_;
 };
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Jaguar4x4Arm>("192.168.0.63",10001));
+  rclcpp::spin(std::make_shared<Jaguar4x4Arm>("192.168.0.63", 10001));
   rclcpp::shutdown();
   return 0;
 }
