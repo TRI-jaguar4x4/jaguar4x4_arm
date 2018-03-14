@@ -7,5 +7,5 @@ class ArmReceive {
   ArmReceive(AbstractCommunication* comm);
   void getAndParseMessage();
  private:
-  AbstractCommunication* comm_; // shared ptr?
+  AbstractCommunication* comm_; // shared_ptr?
 };

@@ -11,7 +11,7 @@ ArmCommand::ArmCommand(AbstractCommunication* comm)
 std::string ArmCommand::buildArmCommand(ArmCommand::Joint arm, int value)
 {
   std::string arm_command("!PR ");
-  if (arm == lower_arm) {
+  if (arm == Joint::lower_arm) {
     arm_command.append("1");
   } else {
     arm_command.append("2");

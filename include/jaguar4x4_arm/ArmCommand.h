@@ -21,7 +21,7 @@ private:
 
 class ArmCommand {
  public:
-  enum Joint {
+  enum class Joint {
     lower_arm,
     upper_arm,
   };
@@ -36,6 +36,6 @@ class ArmCommand {
   
  private:
   std::string buildArmCommand(ArmCommand::Joint arm, int value);
-  AbstractCommunication* comm_; // shared ptr?
+  AbstractCommunication* comm_; // shared_ptr?
   std::mutex send_mutex;
 };
