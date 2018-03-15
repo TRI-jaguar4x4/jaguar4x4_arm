@@ -35,6 +35,12 @@ void ArmCommand::moveArmDown(ArmCommand::Joint arm)
   comm_->sendCommand(buildArmCommand(arm, 30));
 }
 
+void ArmCommand::configure()
+{
+  ArmSendLock send_lock(send_mutex);
+  comm_->sendCommand("# C_?A_?A_?AI_?C_?FF_?P_?S_?T_?V_# 50\r");
+}
+
 void ArmCommand::resume()
 {
   ArmSendLock send_lock(send_mutex);

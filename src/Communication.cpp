@@ -113,18 +113,21 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       if (rcv_retval == EINTR) {
 	continue;
       }
+      // TODO: don't throw an error... store it internally, just retun as a timeout, then on the next call, complete collection of data.
       throw std::runtime_error("Failed to receive chunk: " + std::string(::strerror(errno)));
     }
     rcv_chunk[rcv_retval] = '\0';
-    std::cerr << rcv_chunk << "\n";
+    //    std::cerr << rcv_chunk << "\n";
     rcv_str.append(rcv_chunk);
 
+    // TODO: This could return the entire command + the beginning
+    // of a new one... deal with that somehow.
+
     // if we found a boundary, we're done
+    // TODO: BUT if we received more data after the boundary, store it.
     if (rcv_str.find(boundary) != std::string::npos) {
       done = true;
     }
-    // TODO: This could return the entire command + the beginning
-    // of a new one... deal with that somehow.
   }
   
   return rcv_str;

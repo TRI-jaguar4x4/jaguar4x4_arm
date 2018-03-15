@@ -35,6 +35,7 @@ public:
     timer_ = this->create_wall_timer(
       500ms, std::bind(&Jaguar4x4Arm::timerCallback, this));
 
+    lift_cmd_->configure();
     lift_cmd_->resume();
 
     future_ = exit_signal_.get_future();

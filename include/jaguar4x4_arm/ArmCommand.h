@@ -30,6 +30,7 @@ class ArmCommand {
   // TODO: parameterize "how much" to move the arm up/down"
   void moveArmUp(ArmCommand::Joint arm);
   void moveArmDown(ArmCommand::Joint arm);
+  void configure();
   void resume();
   void eStop();
   void ping();
