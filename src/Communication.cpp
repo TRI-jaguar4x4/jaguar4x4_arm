@@ -125,7 +125,9 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
 
     // if we found a boundary, we're done
     // TODO: BUT if we received more data after the boundary, store it.
-    if (rcv_str.find(boundary) != std::string::npos) {
+    size_t pos = rcv_str.find(boundary);
+    if (pos != std::string::npos) { // TODO don't just truncate
+      rcv_str = rcv_str.substr(0,pos);
       done = true;
     }
   }
