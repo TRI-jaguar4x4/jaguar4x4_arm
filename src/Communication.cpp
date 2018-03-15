@@ -102,7 +102,8 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       }
       throw std::runtime_error("Failed to receive command: " + std::string(::strerror(errno)));
     } else if (retval == 0) {
-      throw std::runtime_error("Failed to receive command, timeout expired");
+      // didn't receive a command, just return an empty string
+      return "";
     }
     if (!FD_ISSET(fd_, &readfds)) {
       throw std::runtime_error("Failed to receive command, bad fd");
@@ -116,18 +117,15 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       // TODO: don't throw an error... store it internally, just retun as a timeout, then on the next call, complete collection of data.
       throw std::runtime_error("Failed to receive chunk: " + std::string(::strerror(errno)));
     }
-    rcv_chunk[rcv_retval] = '\0';
+    
     //    std::cerr << rcv_chunk << "\n";
-    rcv_str.append(rcv_chunk);
-
-    // TODO: This could return the entire command + the beginning
-    // of a new one... deal with that somehow.
+    partial_buffer_.append(rcv_chunk, static_cast<size_t>(rcv_retval));
 
     // if we found a boundary, we're done
-    // TODO: BUT if we received more data after the boundary, store it.
-    size_t pos = rcv_str.find(boundary);
-    if (pos != std::string::npos) { // TODO don't just truncate
-      rcv_str = rcv_str.substr(0,pos);
+    size_t pos = partial_buffer_.find(boundary);
+    if (pos != std::string::npos) { // TODO... this substringing is stupid expensive, be smarter
+      rcv_str = partial_buffer_.substr(0,pos);
+      partial_buffer_ = partial_buffer_.substr(pos+boundary.length());
       done = true;
     }
   }

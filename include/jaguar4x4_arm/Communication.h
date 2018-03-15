@@ -12,4 +12,6 @@ class Communication : public AbstractCommunication {
  private:
   int ipValidator(const std::string& ip);
   int fd_;
+  std::string partial_buffer_;
+  static const size_t BUFFER_MAX_SIZE_ = 1024;
 };
