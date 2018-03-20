@@ -5,28 +5,6 @@
 
 #include "jaguar4x4_arm/ArmReceive.h"
 
-// MAGIC TO PRINT A STD::TUPLE
-// Define a type which holds an unsigned integer value 
-template<std::size_t> struct int_{};
-
-template <class Tuple, size_t Pos>
-std::ostream& print_tuple(std::ostream& out, const Tuple& t, int_<Pos> ) {
-  out << std::get< std::tuple_size<Tuple>::value-Pos >(t) << ',';
-  return print_tuple(out, t, int_<Pos-1>());
-}
-
-template <class Tuple>
-std::ostream& print_tuple(std::ostream& out, const Tuple& t, int_<1> ) {
-  return out << std::get<std::tuple_size<Tuple>::value-1>(t);
-}
-
-template <class... Args>
-std::ostream& operator<<(std::ostream& out, const std::tuple<Args...>& t) {
-  out << '('; 
-  print_tuple(out, t, int_<sizeof...(Args)>()); 
-  return out << ')';
-}
-
 // Terminology from http://www.cplusplus.com/reference/string/string/compare/
 static bool startsWith(const std::string& compared, const std::string& comparing)
 {
@@ -98,7 +76,7 @@ static void dumpHex(const std::string& msg)
   std::cerr << output << "\n";
 }
 
-MotorTempMsg::MotorTempMsg(uint16_t temp1, uint16_t temp2) : AbstractArmMsg(), motor_temp_adc_1_(temp1), motor_temp_adc_2_(temp2)
+MotorTempMsg::MotorTempMsg(uint16_t temp1, uint16_t temp2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_temperature), motor_temp_adc_1_(temp1), motor_temp_adc_2_(temp2)
 {
   motor_temp_1_ = adToTemperature(temp1);
   motor_temp_2_ = adToTemperature(temp2);
@@ -139,7 +117,7 @@ void ArmReceive::getAndParseMessage()
     if (std::regex_match(msg, sm, std::regex("A=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
       //      std::cerr << sm[1] << " " << sm[2] << " ";
       MotorAmpMsg amp_message(str_to_d(sm[1]),str_to_d(sm[2]));
-      std::cerr << "motor_amperage: " << amp_message.get() << "\n";
+      std::cerr << "motor_amperage: " << amp_message.motor_amp_1_ << " " << amp_message.motor_amp_2_ << "\n";
     } else {
       std::cerr << "BOO, A didn't parse\n";
       dumpHex(msg);
@@ -186,7 +164,7 @@ void ArmReceive::getAndParseMessage()
   } else if (startsWith(msg,"AI=")) {
     if (std::regex_match(msg, sm, std::regex("AI=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
       MotorTempMsg motor_temp(std::stoul(sm[3]), std::stoul(sm[4]));
-      std::cerr << " motor_temperature: " << motor_temp.get() << "\n";
+      std::cerr << "motor_temperature: " << motor_temp.motor_temp_adc_1_ << " " << motor_temp.motor_temp_1_ << " " << motor_temp.motor_temp_adc_2_ << " " << motor_temp.motor_temp_2_ << " " << "\n";
     } else {
       std::cerr << "BOO, AI didn't parse ";
       dumpHex(msg);
