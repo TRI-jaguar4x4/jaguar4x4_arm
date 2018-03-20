@@ -126,6 +126,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"C=")) {
     if (std::regex_match(msg, sm, std::regex("C=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorEncPosMsg>(std::stol(sm[1]),std::stol(sm[2])));
       //      std::cerr << "size of sm for C " << sm.size() << "\n";
     } else {
       std::cerr << "BOO, C didn't parse\n";
@@ -133,6 +134,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"P=")) {
     if (std::regex_match(msg, sm, std::regex("P=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorPowerMsg>(std::stol(sm[1]),std::stol(sm[2])));
       //      std::cerr << "size of sm for P " << sm.size() << "\n";
     } else {
       std::cerr << "BOO, P didn't parse\n";
@@ -140,6 +142,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"S=")) {
     if (std::regex_match(msg, sm, std::regex("S=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorEncVelMsg>(std::stol(sm[1]),std::stol(sm[2])));
       //      std::cerr << "size of sm for S " << sm.size() << "\n";
     } else {
       std::cerr << "BOO, S didn't parse\n";
@@ -147,6 +150,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"T=")) {
     if (std::regex_match(msg, sm, std::regex("T=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorBoardTempMsg>(str_to_d(sm[1]),str_to_d(sm[2])));
       //      std::cerr << "size of sm for T " << sm.size() << "\n";
     } else {
       std::cerr << "BOO, T didn't parse\n";
@@ -154,6 +158,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"V=")) {
     if (std::regex_match(msg, sm, std::regex("V=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorVoltageMsg>(str_to_d(sm[1])/10.0,str_to_d(sm[2])/10.0,str_to_d(sm[2])/1000.0));
       //      std::cerr << "size of sm for V " << sm.size() << " contents[0]: " << sm[0] << "\n";
     } else {
       std::cerr << "BOO, V didn't parse\n";
@@ -180,6 +185,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"MMOD=")) {
     if (std::regex_match(msg, sm, std::regex("MMOD=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
+      arm_msgs.emplace_back(std::make_unique<MotorModeMsg>(std::stoul(sm[1]), std::stoul(sm[2])));
       //      std::cerr << "size of sm for MMOD " << sm.size() << "\n";
     } else {
       std::cerr << "BOO, MMOD didn't parse\n";

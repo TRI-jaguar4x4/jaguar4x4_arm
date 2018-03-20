@@ -66,6 +66,65 @@ class MotorTempMsg : public AbstractArmMsg {
   double motor_temp_2_;
 };
 
+
+
+class MotorEncPosMsg : public AbstractArmMsg {
+ public:
+  MotorEncPosMsg(int64_t enc_pos_1, int64_t enc_pos_2) : AbstractArmMsg(AbstractArmMsg::MessageType::encoder_position), encoder_pos_1_(enc_pos_1), encoder_pos_2_(enc_pos_2) {}
+
+  int64_t encoder_pos_1_;
+  int64_t encoder_pos_2_;
+};
+    
+class MotorPowerMsg : public AbstractArmMsg {
+ public:
+  MotorPowerMsg(int16_t motor_power_1, int16_t motor_power_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_power), motor_power_1_(motor_power_1), motor_power_2_(motor_power_2) {}
+
+  int16_t motor_power_1_;
+  int16_t motor_power_2_;
+};
+    
+class MotorEncVelMsg : public AbstractArmMsg {
+ public:
+  MotorEncVelMsg(int64_t encoder_velocity_1, int64_t encoder_velocity_2) : AbstractArmMsg(AbstractArmMsg::MessageType::encoder_velocity), encoder_velocity_1_(encoder_velocity_1), encoder_velocity_2_(encoder_velocity_2) {}
+
+  int64_t encoder_velocity_1_;
+  int64_t encoder_velocity_2_;
+};
+
+class MotorBoardTempMsg : public AbstractArmMsg {
+ public:
+  MotorBoardTempMsg(double temp_1, double temp_2) : AbstractArmMsg(AbstractArmMsg::MessageType::board_temperature), board_temp_1_(temp_1), board_temp_2_(temp_2) {}
+
+  double board_temp_1_;
+  double board_temp_2_;
+};
+    
+class MotorVoltageMsg : public AbstractArmMsg {
+ public:
+  MotorVoltageMsg(double v_1, double v_2, double v_3) : AbstractArmMsg(AbstractArmMsg::MessageType::voltage), drv_voltage_(v_1), bat_voltage_(v_2), reg_5_voltage_(v_3) {}
+
+  double drv_voltage_;
+  double bat_voltage_;
+  double reg_5_voltage_;
+};
+    
+class MotorModeMsg : public AbstractArmMsg {
+ public:
+  MotorModeMsg(uint16_t mode_1, uint16_t mode_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_mode), mode_channel_1_(mode_1), mode_channel_2_(mode_2) {}
+
+  uint16_t mode_channel_1_;
+  uint16_t mode_channel_2_;
+};
+    
+/*
+STILL HAVE TO DO THESE...
+    motor_mode,         // MMOD
+    flags,              // FF
+    command_accepted,   // +
+    command_rejected,   // -
+*/
+
 class ArmReceive {
  public:
   ArmReceive(AbstractCommunication* comm);

@@ -67,9 +67,11 @@ private:
     last_stamp_ = this_stamp;
     if (msg->pose.position.z > 0) {
       lift_cmd_->moveArmDown(ArmCommand::Joint::lower_arm);
+      lift_cmd_->moveArmDown(ArmCommand::Joint::upper_arm);
     }
     else {
       lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm);
+      lift_cmd_->moveArmUp(ArmCommand::Joint::upper_arm);
     }
   }
 
@@ -91,37 +93,50 @@ private:
 	switch(msg->getType()) {
 	case AbstractArmMsg::MessageType::motor_amperage:
 	  {
+	    MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(msg.get());
+	    std::cerr << "motor_amperage: " << motor_amp->motor_amp_1_ << " " << motor_amp->motor_amp_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::motor_temperature:
 	  {
-	    std::cerr << "casting to motor_temp\n";
 	    MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg.get());
 	    std::cerr << "motor_temperature: " << motor_temp->motor_temp_adc_1_ << " " << motor_temp->motor_temp_1_ << " " << motor_temp->motor_temp_adc_2_ << " " << motor_temp->motor_temp_2_ << " " << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::encoder_position:
 	  {
+	    MotorEncPosMsg *motor_enc_pos = dynamic_cast<MotorEncPosMsg*>(msg.get());
+	    std::cerr << "encoder_position: " << motor_enc_pos->encoder_pos_1_ << " " << motor_enc_pos->encoder_pos_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::motor_power:
 	  {
+	    MotorPowerMsg *motor_power = dynamic_cast<MotorPowerMsg*>(msg.get());
+	    std::cerr << "motor_power: " << motor_power->motor_power_1_ << " " << motor_power->motor_power_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::encoder_velocity:
 	  {
+	    MotorEncVelMsg *motor_enc_vel = dynamic_cast<MotorEncVelMsg*>(msg.get());
+	    std::cerr << "encoder_velocity: " << motor_enc_vel->encoder_velocity_1_ << " " << motor_enc_vel->encoder_velocity_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::board_temperature:
 	  {
+	    MotorBoardTempMsg *motor_board_temp = dynamic_cast<MotorBoardTempMsg*>(msg.get());
+	    std::cerr << "board_temperature: " << motor_board_temp->board_temp_1_ << " " << motor_board_temp->board_temp_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::voltage:
 	  {
+	    MotorVoltageMsg *motor_voltage = dynamic_cast<MotorVoltageMsg*>(msg.get());
+	    std::cerr << "voltage: " << motor_voltage->drv_voltage_ << " " << motor_voltage->bat_voltage_ << " " << motor_voltage->reg_5_voltage_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::motor_mode:
 	  {
+	    MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
+	    std::cerr << "motor_mode: " << motor_mode->mode_channel_1_ << " " << motor_mode->mode_channel_2_ << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::flags:
