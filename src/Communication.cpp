@@ -19,7 +19,7 @@ int Communication::ipValidator(const std::string& ip)
   if (sscanf(ip.c_str(), "%u.%u.%u.%u", &n1,&n2,&n3,&n4) != 4) {
     return -1;
   }
-  
+
   if ((n1 != 0) && (n1 <= 255) && (n2 <= 255) && (n3 <= 255) && (n4 <= 255)) {
     return 0;
   }
@@ -65,7 +65,7 @@ void Communication::sendCommand(const std::string& cmd)
     if (retval < 0) {
 
       if (retval == EINTR) {
-	continue;
+        continue;
       }
       throw std::runtime_error("Failed to send command: " + cmd + std::string(::strerror(errno)));
     }
@@ -85,7 +85,7 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
 
   std::string rcv_str;
   char rcv_chunk[1024];
-  
+
   FD_ZERO(&readfds);
   FD_SET(fd_, &readfds);
 
@@ -98,7 +98,7 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
     int retval = select(fd_ + 1, &readfds, NULL, NULL, &tv);
     if (retval < 0) {
       if (retval == EINTR) {
-	continue;
+        continue;
       }
       throw std::runtime_error("Failed to receive command: " + std::string(::strerror(errno)));
     } else if (retval == 0) {
@@ -112,12 +112,12 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
     int rcv_retval = recv(fd_, rcv_chunk, sizeof(rcv_chunk)-1, 0);
     if (rcv_retval < 0) {
       if (rcv_retval == EINTR) {
-	continue;
+        continue;
       }
       // TODO: don't throw an error... store it internally, just retun as a timeout, then on the next call, complete collection of data.
       throw std::runtime_error("Failed to receive chunk: " + std::string(::strerror(errno)));
     }
-    
+
     //    std::cerr << rcv_chunk << "\n";
     partial_buffer_.append(rcv_chunk, static_cast<size_t>(rcv_retval));
 
@@ -129,6 +129,6 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       done = true;
     }
   }
-  
+
   return rcv_str;
 }

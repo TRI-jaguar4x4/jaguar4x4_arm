@@ -48,8 +48,8 @@ static double adToTemperature(uint16_t adValue)
     {
       if ((resValue <= resTable[i]) && (resValue >= resTable[i + 1]))
       {
-	index = i;
-	break;
+        index = i;
+        break;
       }
     }
     if (index >= 0)
@@ -82,7 +82,7 @@ MotorTempMsg::MotorTempMsg(uint16_t temp1, uint16_t temp2) : AbstractArmMsg(Abst
   motor_temp_1_ = adToTemperature(temp1);
   motor_temp_2_ = adToTemperature(temp2);
 }
-  
+
 ArmReceive::ArmReceive(AbstractCommunication* comm) : comm_(comm)
 {
 }
@@ -107,12 +107,12 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
   std::string msg = comm_->recvMessage("\r", 100);
   std::smatch sm;
   std::vector<std::unique_ptr<AbstractArmMsg>> arm_msgs;
-  
+
   // nothing before the "\r"
   if (msg.empty()) {
     return arm_msgs;
   }
-  
+
   //  dumpHex(msg);
 
   if (startsWith(msg,"A=")) {
@@ -196,6 +196,6 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
   } else {
     std::cerr << "UNKNOWN MESSAGE TYPE '"<< msg << "'\n";
   }
-  
+
   return arm_msgs;
 }

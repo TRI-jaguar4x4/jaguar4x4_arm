@@ -22,7 +22,7 @@ class AbstractArmMsg {
     command_accepted,   // +
     command_rejected,   // -
   };
-  
+
   explicit AbstractArmMsg(AbstractArmMsg::MessageType msg_type) : msg_type_(msg_type) {
     std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> t;
     std::chrono::duration<int, std::nano> now = t.time_since_epoch();
@@ -31,7 +31,7 @@ class AbstractArmMsg {
   }
 
   virtual ~AbstractArmMsg() = default;
-  
+
   std::pair<std::chrono::seconds, std::chrono::nanoseconds> getTime() const
   {
     return std::make_pair(ts_s_, ts_ns_);
@@ -41,7 +41,7 @@ class AbstractArmMsg {
   {
     return msg_type_;
   }
-  
+
 protected:
   AbstractArmMsg::MessageType msg_type_;
   std::chrono::seconds ts_s_;
@@ -59,7 +59,7 @@ class MotorAmpMsg : public AbstractArmMsg {
 class MotorTempMsg : public AbstractArmMsg {
  public:
   MotorTempMsg(uint16_t temp1, uint16_t temp2);
-  
+
   uint16_t motor_temp_adc_1_;
   double motor_temp_1_;
   uint16_t motor_temp_adc_2_;
@@ -75,7 +75,7 @@ class MotorEncPosMsg : public AbstractArmMsg {
   int64_t encoder_pos_1_;
   int64_t encoder_pos_2_;
 };
-    
+
 class MotorPowerMsg : public AbstractArmMsg {
  public:
   MotorPowerMsg(int16_t motor_power_1, int16_t motor_power_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_power), motor_power_1_(motor_power_1), motor_power_2_(motor_power_2) {}
@@ -83,7 +83,7 @@ class MotorPowerMsg : public AbstractArmMsg {
   int16_t motor_power_1_;
   int16_t motor_power_2_;
 };
-    
+
 class MotorEncVelMsg : public AbstractArmMsg {
  public:
   MotorEncVelMsg(int64_t encoder_velocity_1, int64_t encoder_velocity_2) : AbstractArmMsg(AbstractArmMsg::MessageType::encoder_velocity), encoder_velocity_1_(encoder_velocity_1), encoder_velocity_2_(encoder_velocity_2) {}
@@ -99,7 +99,7 @@ class MotorBoardTempMsg : public AbstractArmMsg {
   double board_temp_1_;
   double board_temp_2_;
 };
-    
+
 class MotorVoltageMsg : public AbstractArmMsg {
  public:
   MotorVoltageMsg(double v_1, double v_2, double v_3) : AbstractArmMsg(AbstractArmMsg::MessageType::voltage), drv_voltage_(v_1), bat_voltage_(v_2), reg_5_voltage_(v_3) {}
@@ -108,7 +108,7 @@ class MotorVoltageMsg : public AbstractArmMsg {
   double bat_voltage_;
   double reg_5_voltage_;
 };
-    
+
 /*
 STILL HAVE TO DO THIS MESSAGE...
     flags,              // FF
@@ -123,23 +123,23 @@ class MotorModeMsg : public AbstractArmMsg {
     Position_3=3,
     Torque=4,
   };
-  
+
   MotorModeMsg(int mode_1, int mode_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_mode), mode_channel_1_(MotorModeMsg::MotorControlMode(mode_1)), mode_channel_2_(MotorModeMsg::MotorControlMode(mode_2)) {}
 
   MotorModeMsg::MotorControlMode mode_channel_1_;
   MotorModeMsg::MotorControlMode mode_channel_2_;
 };
-    
+
 class MotorCmdAcceptedMsg : public AbstractArmMsg {
  public:
   MotorCmdAcceptedMsg() : AbstractArmMsg(AbstractArmMsg::MessageType::command_accepted) {}
 };
-    
+
 class MotorCmdRejectedMsg : public AbstractArmMsg {
  public:
   MotorCmdRejectedMsg() : AbstractArmMsg(AbstractArmMsg::MessageType::command_rejected) {}
 };
-    
+
 class ArmReceive {
  public:
   ArmReceive(AbstractCommunication* comm);

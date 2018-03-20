@@ -34,8 +34,8 @@ class ArmCommand {
   void resume();
   void eStop();
   void ping();
-  
- private:
+
+private:
   std::string buildArmCommand(ArmCommand::Joint arm, int value);
   AbstractCommunication* comm_; // shared_ptr?
   std::mutex send_mutex;
