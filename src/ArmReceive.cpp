@@ -1,7 +1,31 @@
 #include <iostream>
 #include <regex>
+#include <string>
+#include <utility>
 
 #include "jaguar4x4_arm/ArmReceive.h"
+
+// MAGIC TO PRINT A STD::TUPLE
+// Define a type which holds an unsigned integer value 
+template<std::size_t> struct int_{};
+
+template <class Tuple, size_t Pos>
+std::ostream& print_tuple(std::ostream& out, const Tuple& t, int_<Pos> ) {
+  out << std::get< std::tuple_size<Tuple>::value-Pos >(t) << ',';
+  return print_tuple(out, t, int_<Pos-1>());
+}
+
+template <class Tuple>
+std::ostream& print_tuple(std::ostream& out, const Tuple& t, int_<1> ) {
+  return out << std::get<std::tuple_size<Tuple>::value-1>(t);
+}
+
+template <class... Args>
+std::ostream& operator<<(std::ostream& out, const std::tuple<Args...>& t) {
+  out << '('; 
+  print_tuple(out, t, int_<sizeof...(Args)>()); 
+  return out << ')';
+}
 
 // Terminology from http://www.cplusplus.com/reference/string/string/compare/
 static bool startsWith(const std::string& compared, const std::string& comparing)
@@ -10,6 +34,56 @@ static bool startsWith(const std::string& compared, const std::string& comparing
     return false;
   }
   return compared.compare(0, comparing.length(), comparing) == 0;
+}
+
+static double adToTemperature(uint16_t adValue)
+{
+  static double resTable[25] = {114660,84510,62927,47077,35563,27119,20860,16204,12683,10000,7942,6327,5074,4103,3336,2724,2237,1846,1530,1275,1068,899.3,760.7,645.2,549.4};
+  static double tempTable[25] = { -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
+  static double FULLAD = 4095;
+  //for new temperature sensor
+  double tempM = 0;
+  double k = (adValue / FULLAD);
+  double resValue = 0;
+  if (k != 0)
+  {
+    resValue = (10000 / k -10000);      //AD value to resistor
+  }
+  else
+  {
+    resValue = resTable[0];
+  }
+
+  int index = -1;
+  if (resValue >= resTable[0])       //too lower
+  {
+    tempM = -20;
+  }
+  else if (resValue <= resTable[24])
+  {
+    tempM = 100;
+  }
+  else
+  {
+    for (int i = 0; i < 24; i++)
+    {
+      if ((resValue <= resTable[i]) && (resValue >= resTable[i + 1]))
+      {
+	index = i;
+	break;
+      }
+    }
+    if (index >= 0)
+    {
+      tempM = tempTable[index] + (resValue - resTable[index]) / (resTable[index + 1] - resTable[index]) * (tempTable[index + 1] - tempTable[index]);
+    }
+    else
+    {
+      tempM = 0;
+    }
+  }
+
+  return tempM;
 }
 
 static void dumpHex(const std::string& msg)
@@ -24,8 +98,29 @@ static void dumpHex(const std::string& msg)
   std::cerr << output << "\n";
 }
 
+MotorTempMsg::MotorTempMsg(uint16_t temp1, uint16_t temp2) : AbstractArmMsg(), motor_temp_adc_1_(temp1), motor_temp_adc_2_(temp2)
+{
+  motor_temp_1_ = adToTemperature(temp1);
+  motor_temp_2_ = adToTemperature(temp2);
+}
+  
 ArmReceive::ArmReceive(AbstractCommunication* comm) : comm_(comm)
 {
+}
+
+static double str_to_d(const std::string& in) {
+  std::stringstream ss;
+  ss.imbue(std::locale::classic());
+  ss << in;
+
+  double out;
+  ss >> out;
+
+  if (ss.fail() || !ss.eof()) {
+    throw std::runtime_error("failed str_to_d conversion");
+  }
+
+  return out;
 }
 
 void ArmReceive::getAndParseMessage()
@@ -42,7 +137,9 @@ void ArmReceive::getAndParseMessage()
 
   if (startsWith(msg,"A=")) {
     if (std::regex_match(msg, sm, std::regex("A=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
-      //      std::cerr << "size of sm for A " << sm.size() << "\n";
+      //      std::cerr << sm[1] << " " << sm[2] << " ";
+      MotorAmpMsg amp_message(str_to_d(sm[1]),str_to_d(sm[2]));
+      std::cerr << "motor_amperage: " << amp_message.get() << "\n";
     } else {
       std::cerr << "BOO, A didn't parse\n";
       dumpHex(msg);
@@ -88,7 +185,8 @@ void ArmReceive::getAndParseMessage()
     // INvalid command accepted
   } else if (startsWith(msg,"AI=")) {
     if (std::regex_match(msg, sm, std::regex("AI=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
-      //      std::cerr << "size of sm for AI " << sm.size() << "\n";
+      MotorTempMsg motor_temp(std::stoul(sm[3]), std::stoul(sm[4]));
+      std::cerr << " motor_temperature: " << motor_temp.get() << "\n";
     } else {
       std::cerr << "BOO, AI didn't parse ";
       dumpHex(msg);
