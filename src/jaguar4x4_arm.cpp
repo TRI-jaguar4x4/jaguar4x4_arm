@@ -88,7 +88,6 @@ private:
       catch (...) {
 	std::cerr << "threw\n";
       }
-      std::cerr << "size of arm_msgs: " << arm_msgs.size() << "\n";
       for(std::unique_ptr<AbstractArmMsg>& msg : arm_msgs) {
 	switch(msg->getType()) {
 	case AbstractArmMsg::MessageType::motor_amperage:
@@ -136,7 +135,11 @@ private:
 	case AbstractArmMsg::MessageType::motor_mode:
 	  {
 	    MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
-	    std::cerr << "motor_mode: " << motor_mode->mode_channel_1_ << " " << motor_mode->mode_channel_2_ << "\n";	  
+	    std::cerr << "motor_mode: "
+		      << static_cast<std::underlying_type<MotorModeMsg::MotorControlMode>::type>(motor_mode->mode_channel_1_)
+		      << " "
+		      << static_cast<std::underlying_type<MotorModeMsg::MotorControlMode>::type>(motor_mode->mode_channel_2_)
+		      << "\n";	  
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::flags:
@@ -145,10 +148,12 @@ private:
 	  break;
 	case AbstractArmMsg::MessageType::command_accepted:
 	  {
+	    std::cerr << "command_accepted\n";
 	  }
 	  break;
 	case AbstractArmMsg::MessageType::command_rejected:
 	  {
+	    std::cerr << "command_rejected\n";
 	  }
 	  break;
 	}

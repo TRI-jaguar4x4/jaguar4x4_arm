@@ -158,7 +158,7 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"V=")) {
     if (std::regex_match(msg, sm, std::regex("V=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
-      arm_msgs.emplace_back(std::make_unique<MotorVoltageMsg>(str_to_d(sm[1])/10.0,str_to_d(sm[2])/10.0,str_to_d(sm[2])/1000.0));
+      arm_msgs.emplace_back(std::make_unique<MotorVoltageMsg>(str_to_d(sm[1])/10.0,str_to_d(sm[2])/10.0,str_to_d(sm[3])/1000.0));
       //      std::cerr << "size of sm for V " << sm.size() << " contents[0]: " << sm[0] << "\n";
     } else {
       std::cerr << "BOO, V didn't parse\n";
@@ -166,8 +166,10 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
     }
   } else if (startsWith(msg,"+")) {
     // valid command accepted
+    arm_msgs.emplace_back(std::make_unique<MotorCmdAcceptedMsg>());
   } else if (startsWith(msg,"-")) {
     // INvalid command accepted
+    arm_msgs.emplace_back(std::make_unique<MotorCmdRejectedMsg>());
   } else if (startsWith(msg,"AI=")) {
     if (std::regex_match(msg, sm, std::regex("AI=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
       arm_msgs.emplace_back(std::make_unique<MotorTempMsg>(std::stoul(sm[3]), std::stoul(sm[4])));

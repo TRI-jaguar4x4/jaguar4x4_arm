@@ -109,22 +109,37 @@ class MotorVoltageMsg : public AbstractArmMsg {
   double reg_5_voltage_;
 };
     
-class MotorModeMsg : public AbstractArmMsg {
- public:
-  MotorModeMsg(uint16_t mode_1, uint16_t mode_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_mode), mode_channel_1_(mode_1), mode_channel_2_(mode_2) {}
-
-  uint16_t mode_channel_1_;
-  uint16_t mode_channel_2_;
-};
-    
 /*
-STILL HAVE TO DO THESE...
-    motor_mode,         // MMOD
+STILL HAVE TO DO THIS MESSAGE...
     flags,              // FF
-    command_accepted,   // +
-    command_rejected,   // -
 */
 
+class MotorModeMsg : public AbstractArmMsg {
+ public:
+  enum class MotorControlMode {
+    OpenLoop = 0,
+    ClosedSpeed = 1,
+    Position_2=2,
+    Position_3=3,
+    Torque=4,
+  };
+  
+  MotorModeMsg(int mode_1, int mode_2) : AbstractArmMsg(AbstractArmMsg::MessageType::motor_mode), mode_channel_1_(MotorModeMsg::MotorControlMode(mode_1)), mode_channel_2_(MotorModeMsg::MotorControlMode(mode_2)) {}
+
+  MotorModeMsg::MotorControlMode mode_channel_1_;
+  MotorModeMsg::MotorControlMode mode_channel_2_;
+};
+    
+class MotorCmdAcceptedMsg : public AbstractArmMsg {
+ public:
+  MotorCmdAcceptedMsg() : AbstractArmMsg(AbstractArmMsg::MessageType::command_accepted) {}
+};
+    
+class MotorCmdRejectedMsg : public AbstractArmMsg {
+ public:
+  MotorCmdRejectedMsg() : AbstractArmMsg(AbstractArmMsg::MessageType::command_rejected) {}
+};
+    
 class ArmReceive {
  public:
   ArmReceive(AbstractCommunication* comm);
