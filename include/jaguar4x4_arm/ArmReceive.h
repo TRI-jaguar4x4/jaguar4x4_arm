@@ -2,16 +2,9 @@
 
 #include <chrono>
 #include <utility>
+#include <vector>
 
 #include "AbstractCommunication.h"
-
-class ArmReceive {
- public:
-  ArmReceive(AbstractCommunication* comm);
-  void getAndParseMessage();
- private:
-  AbstractCommunication* comm_; // shared_ptr?
-};
 
 class AbstractArmMsg {
  public:
@@ -36,10 +29,18 @@ class AbstractArmMsg {
     ts_ns_ = std::chrono::duration_cast<std::chrono::nanoseconds>(now);
   }
 
-  std::pair<std::chrono::seconds, std::chrono::nanoseconds> getTime()
+  virtual ~AbstractArmMsg() = default;
+  
+  std::pair<std::chrono::seconds, std::chrono::nanoseconds> getTime() const
   {
     return std::make_pair(ts_s_, ts_ns_);
   }
+
+  AbstractArmMsg::MessageType getType() const
+  {
+    return msg_type_;
+  }
+  
 protected:
   AbstractArmMsg::MessageType msg_type_;
   std::chrono::seconds ts_s_;
@@ -62,4 +63,12 @@ class MotorTempMsg : public AbstractArmMsg {
   double motor_temp_1_;
   uint16_t motor_temp_adc_2_;
   double motor_temp_2_;
+};
+
+class ArmReceive {
+ public:
+  ArmReceive(AbstractCommunication* comm);
+  std::vector<AbstractArmMsg*> getAndParseMessage();
+ private:
+  AbstractCommunication* comm_; // shared_ptr?
 };

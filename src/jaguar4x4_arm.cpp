@@ -78,14 +78,65 @@ private:
   {
     std::cerr << "entered the callback\n";
     std::future_status status;
+    std::vector<AbstractArmMsg*> arm_msgs;
     do {
       try {
-	lift_recv->getAndParseMessage();
+	arm_msgs = lift_recv->getAndParseMessage();
       }
       catch (...) {
 	std::cerr << "threw\n";
       }
-      
+      std::cerr << "size of arm_msgs: " << arm_msgs.size() << "\n";
+      for(AbstractArmMsg* msg : arm_msgs) {
+	switch(msg->getType()) {
+	case AbstractArmMsg::MessageType::motor_amperage:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::motor_temperature:
+	  {
+	    MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg);
+	    std::cerr << "motor_temperature: " << motor_temp->motor_temp_adc_1_ << " " << motor_temp->motor_temp_1_ << " " << motor_temp->motor_temp_adc_2_ << " " << motor_temp->motor_temp_2_ << " " << "\n";	  
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::encoder_position:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::motor_power:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::encoder_velocity:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::board_temperature:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::voltage:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::motor_mode:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::flags:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::command_accepted:
+	  {
+	  }
+	  break;
+	case AbstractArmMsg::MessageType::command_rejected:
+	  {
+	  }
+	  break;
+	}
+      }
       status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
     std::cerr << "no longer in while\n";    
