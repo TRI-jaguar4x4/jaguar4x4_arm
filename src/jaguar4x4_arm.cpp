@@ -78,7 +78,7 @@ private:
   {
     std::cerr << "entered the callback\n";
     std::future_status status;
-    std::vector<AbstractArmMsg*> arm_msgs;
+    std::vector<std::unique_ptr<AbstractArmMsg>> arm_msgs;
     do {
       try {
 	arm_msgs = lift_recv->getAndParseMessage();
@@ -87,7 +87,7 @@ private:
 	std::cerr << "threw\n";
       }
       std::cerr << "size of arm_msgs: " << arm_msgs.size() << "\n";
-      for(AbstractArmMsg* msg : arm_msgs) {
+      for(std::unique_ptr<AbstractArmMsg>& msg : arm_msgs) {
 	switch(msg->getType()) {
 	case AbstractArmMsg::MessageType::motor_amperage:
 	  {
@@ -95,7 +95,8 @@ private:
 	  break;
 	case AbstractArmMsg::MessageType::motor_temperature:
 	  {
-	    MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg);
+	    std::cerr << "casting to motor_temp\n";
+	    MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg.get());
 	    std::cerr << "motor_temperature: " << motor_temp->motor_temp_adc_1_ << " " << motor_temp->motor_temp_1_ << " " << motor_temp->motor_temp_adc_2_ << " " << motor_temp->motor_temp_2_ << " " << "\n";	  
 	  }
 	  break;

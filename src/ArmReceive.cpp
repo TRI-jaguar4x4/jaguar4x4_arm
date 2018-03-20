@@ -102,11 +102,11 @@ static double str_to_d(const std::string& in) {
   return out;
 }
 
-std::vector<AbstractArmMsg*> ArmReceive::getAndParseMessage()
+std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
 {
   std::string msg = comm_->recvMessage("\r", 100);
   std::smatch sm;
-  std::vector<AbstractArmMsg*> arm_msgs;
+  std::vector<std::unique_ptr<AbstractArmMsg>> arm_msgs;
   
   // nothing before the "\r"
   if (msg.empty()) {
@@ -117,7 +117,7 @@ std::vector<AbstractArmMsg*> ArmReceive::getAndParseMessage()
 
   if (startsWith(msg,"A=")) {
     if (std::regex_match(msg, sm, std::regex("A=(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
-      arm_msgs.push_back(new MotorAmpMsg(str_to_d(sm[1]),str_to_d(sm[2])));
+      arm_msgs.emplace_back(std::make_unique<MotorAmpMsg>(str_to_d(sm[1]),str_to_d(sm[2])));
       //      std::cerr << sm[1] << " " << sm[2] << " ";
       //      std::cerr << "motor_amperage: " << amp_message.motor_amp_1_ << " " << amp_message.motor_amp_2_ << "\n";
     } else {
@@ -165,7 +165,7 @@ std::vector<AbstractArmMsg*> ArmReceive::getAndParseMessage()
     // INvalid command accepted
   } else if (startsWith(msg,"AI=")) {
     if (std::regex_match(msg, sm, std::regex("AI=(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?):(-?[0-9-]*?)$"))) {
-      arm_msgs.push_back(new MotorTempMsg(std::stoul(sm[3]), std::stoul(sm[4])));
+      arm_msgs.emplace_back(std::make_unique<MotorTempMsg>(std::stoul(sm[3]), std::stoul(sm[4])));
       //      std::cerr << "motor_temperature: " << motor_temp.motor_temp_adc_1_ << " " << motor_temp.motor_temp_1_ << " " << motor_temp.motor_temp_adc_2_ << " " << motor_temp.motor_temp_2_ << " " << "\n";
     } else {
       std::cerr << "BOO, AI didn't parse ";

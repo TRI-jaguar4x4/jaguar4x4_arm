@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -68,7 +69,7 @@ class MotorTempMsg : public AbstractArmMsg {
 class ArmReceive {
  public:
   ArmReceive(AbstractCommunication* comm);
-  std::vector<AbstractArmMsg*> getAndParseMessage();
+  std::vector<std::unique_ptr<AbstractArmMsg>> getAndParseMessage();
  private:
   AbstractCommunication* comm_; // shared_ptr?
 };
