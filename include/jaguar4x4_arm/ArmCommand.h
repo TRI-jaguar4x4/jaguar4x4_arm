@@ -15,6 +15,7 @@ public:
   {
     mtx_.unlock();
   }
+
 private:
   std::mutex &mtx_;
 };

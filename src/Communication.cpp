@@ -49,7 +49,8 @@ void Communication::connect(const std::string& ip, uint16_t port)
 
   //TCP, setup connection here
   if (::connect(fd_, (struct sockaddr *) &_addr,sizeof(_addr)) < 0) {
-    throw std::runtime_error("Failed to connect with robot. IP address " + ip + " Port: " + std::to_string(port));
+    throw std::runtime_error("Failed to connect with robot. IP address "
+                             + ip + " Port: " + std::to_string(port));
   }
 
   std::cerr << "Connected to " << ip << std::endl;
@@ -67,7 +68,8 @@ void Communication::sendCommand(const std::string& cmd)
       if (retval == EINTR) {
         continue;
       }
-      throw std::runtime_error("Failed to send command: " + cmd + std::string(::strerror(errno)));
+      throw std::runtime_error("Failed to send command: " + cmd
+                               + std::string(::strerror(errno)));
     }
 
     len_to_send -= retval;
@@ -79,7 +81,8 @@ void Communication::sendCommand(const std::string& cmd)
   }
 }
 
-std::string Communication::recvMessage(const std::string& boundary, int timeout_msec)
+std::string Communication::recvMessage(const std::string& boundary,
+                                       int timeout_msec)
 {
   fd_set readfds;
 
@@ -100,7 +103,8 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       if (retval == EINTR) {
         continue;
       }
-      throw std::runtime_error("Failed to receive command: " + std::string(::strerror(errno)));
+      throw std::runtime_error("Failed to receive command: "
+                               + std::string(::strerror(errno)));
     } else if (retval == 0) {
       // didn't receive a command, just return an empty string
       return "";
@@ -114,8 +118,10 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
       if (rcv_retval == EINTR) {
         continue;
       }
-      // TODO: don't throw an error... store it internally, just retun as a timeout, then on the next call, complete collection of data.
-      throw std::runtime_error("Failed to receive chunk: " + std::string(::strerror(errno)));
+      // TODO: don't throw an error... store it internally, just retun
+      // as a timeout, then on the next call, complete collection of data.
+      throw std::runtime_error("Failed to receive chunk: "
+                               + std::string(::strerror(errno)));
     }
 
     //    std::cerr << rcv_chunk << "\n";
@@ -123,7 +129,8 @@ std::string Communication::recvMessage(const std::string& boundary, int timeout_
 
     // if we found a boundary, we're done
     size_t pos = partial_buffer_.find(boundary);
-    if (pos != std::string::npos) { // TODO... this substringing is stupid expensive, be smarter
+    if (pos != std::string::npos) { // TODO... this substringing is
+                                    // stupid expensive, be smarter
       rcv_str = partial_buffer_.substr(0,pos);
       partial_buffer_ = partial_buffer_.substr(pos+boundary.length());
       done = true;

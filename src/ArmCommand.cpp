@@ -38,7 +38,8 @@ void ArmCommand::moveArmDown(ArmCommand::Joint arm)
 void ArmCommand::configure()
 {
   ArmSendLock send_lock(send_mutex);
-  comm_->sendCommand("# C_?A_?A_?AI_?C_?FF_?P_?S_?T_?V_# 50\r");
+  // output the following messages every 100 ms
+  comm_->sendCommand("# C_?A_?A_?AI_?C_?FF_?P_?S_?T_?V_# 100\r");
 }
 
 void ArmCommand::resume()
