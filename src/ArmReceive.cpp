@@ -122,8 +122,8 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
   if (startsWith(msg,"A=")) {
     if (std::regex_match(msg, sm, std::regex("A=(-?[0-9-]*?):(-?[0-9-]*?)$")))
     {
-      arm_msgs.emplace_back(std::make_unique<MotorAmpMsg>(str_to_d(sm[1]),
-                                                          str_to_d(sm[2])));
+      arm_msgs.emplace_back(std::make_unique<MotorAmpMsg>(str_to_d(sm[1])/10.0,
+                                                          str_to_d(sm[2])/10.0));
     } else {
       std::cerr << "BOO, A didn't parse\n";
       dumpHex(msg);
@@ -177,10 +177,10 @@ std::vector<std::unique_ptr<AbstractArmMsg>> ArmReceive::getAndParseMessage()
       dumpHex(msg);
     }
   } else if (startsWith(msg,"+")) {
-    // valid command accepted
+    // valid command received
     arm_msgs.emplace_back(std::make_unique<MotorCmdAcceptedMsg>());
   } else if (startsWith(msg,"-")) {
-    // INvalid command accepted
+    // INvalid command received
     arm_msgs.emplace_back(std::make_unique<MotorCmdRejectedMsg>());
   } else if (startsWith(msg,"AI=")) {
     if (std::regex_match(
