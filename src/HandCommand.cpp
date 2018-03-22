@@ -48,6 +48,12 @@ void HandCommand::gripperClose()
   comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, -200));
 }
 
+void HandCommand::gripperStop()
+{
+  HandSendLock send_lock(send_mutex);
+  comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, 0));
+}
+
 void HandCommand::configure()
 {
   HandSendLock send_lock(send_mutex);

@@ -92,6 +92,8 @@ private:
       hand_cmd_->gripperOpen();
     } else if (msg->pose.position.y < 0){
       hand_cmd_->gripperClose();
+    } else {
+      hand_cmd_->gripperStop();
     }
   }
 

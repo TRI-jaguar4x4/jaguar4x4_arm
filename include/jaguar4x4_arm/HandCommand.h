@@ -33,6 +33,7 @@ class HandCommand {
   void rotateHandRight();
   void gripperOpen();
   void gripperClose();
+  void gripperStop();
   void configure();
   void resume();
   void eStop();
