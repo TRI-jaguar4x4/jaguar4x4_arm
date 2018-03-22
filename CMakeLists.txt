@@ -16,7 +16,7 @@ find_package(geometry_msgs REQUIRED)
 
 include_directories(include)
 
-add_library(jaguar4x4_arm_communication src/Communication.cpp src/ArmCommand.cpp src/ArmReceive.cpp)
+add_library(jaguar4x4_arm_communication src/Communication.cpp src/ArmCommand.cpp src/ArmReceive.cpp src/HandCommand.cpp)
 add_executable(jaguar4x4_arm_node src/jaguar4x4_arm.cpp)
 target_link_libraries(jaguar4x4_arm_node jaguar4x4_arm_communication)
 ament_target_dependencies(jaguar4x4_arm_node rclcpp geometry_msgs)

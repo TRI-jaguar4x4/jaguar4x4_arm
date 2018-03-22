@@ -6,6 +6,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
 #include "jaguar4x4_arm/ArmReceive.h"
+#include "jaguar4x4_arm/HandCommand.h"
 
 #include "jaguar4x4_arm/Communication.h"
 #include "rclcpp/rclcpp.hpp"
@@ -15,12 +16,16 @@ using namespace std::chrono_literals;
 class Jaguar4x4Arm : public rclcpp::Node
 {
 public:
-  Jaguar4x4Arm(const std::string& ip, uint16_t port)
+  Jaguar4x4Arm(const std::string& ip, uint16_t arm_port, uint16_t hand_port)
     : Node("jaguar4x4Arm"), recv_thread_()
   {
     lift_cmd_ = std::make_unique<ArmCommand>(&board_1_comm_);
     lift_rcv_ = std::make_unique<ArmReceive>(&board_1_comm_);
-    board_1_comm_.connect(ip, port);
+    board_1_comm_.connect(ip, arm_port);
+
+    hand_cmd_ = std::make_unique<HandCommand>(&board_2_comm_);
+    hand_rcv_ = std::make_unique<ArmReceive>(&board_2_comm_);
+    board_2_comm_.connect(ip, hand_port);
 
     rmw_qos_profile_t z_position_qos_profile = rmw_qos_profile_sensor_data;
     z_position_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -66,13 +71,27 @@ private:
       return;
     }
     last_stamp_ = this_stamp;
+    // move arm up/down
     if (msg->pose.position.z > 0) {
       lift_cmd_->moveArmDown(ArmCommand::Joint::lower_arm);
       lift_cmd_->moveArmDown(ArmCommand::Joint::upper_arm);
-    }
-    else {
+    } else if (msg->pose.position.z < 0) {
       lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm);
       lift_cmd_->moveArmUp(ArmCommand::Joint::upper_arm);
+    }
+
+    // rotate wrist around x
+    if (msg->pose.position.x > 0) {
+      hand_cmd_->rotateHandLeft();
+    } else if (msg->pose.position.x < 0){
+      hand_cmd_->rotateHandRight();
+    }
+
+    // open/close gripper as y
+    if (msg->pose.position.y > 0) {
+      hand_cmd_->gripperOpen();
+    } else if (msg->pose.position.y < 0){
+      hand_cmd_->gripperClose();
     }
   }
 
@@ -197,23 +216,27 @@ private:
   void timerCallback()
   {
     lift_cmd_->ping();
+    hand_cmd_->ping();
   }
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
-  Communication board_1_comm_;
-  std::unique_ptr<ArmCommand> lift_cmd_;
-  std::unique_ptr<ArmReceive> lift_rcv_;
-  int64_t last_stamp_ = 0;
+  Communication                board_1_comm_;
+  Communication                board_2_comm_;
+  std::unique_ptr<ArmCommand>  lift_cmd_;
+  std::unique_ptr<ArmReceive>  lift_rcv_;
+  std::unique_ptr<HandCommand> hand_cmd_;
+  std::unique_ptr<ArmReceive>  hand_rcv_;
+  int64_t                      last_stamp_ = 0;
   rclcpp::TimerBase::SharedPtr timer_;
-  std::thread recv_thread_;
-  std::promise<void> exit_signal_;
-  std::future<void> future_;
+  std::thread                  recv_thread_;
+  std::promise<void>           exit_signal_;
+  std::future<void>            future_;
 };
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Jaguar4x4Arm>("192.168.0.63", 10001));
+  rclcpp::spin(std::make_shared<Jaguar4x4Arm>("192.168.0.63", 10001, 10002));
   rclcpp::shutdown();
   return 0;
 }
