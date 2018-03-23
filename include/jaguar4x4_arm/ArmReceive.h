@@ -1,3 +1,4 @@
+// Copyright 2018 Toyota Research Institute.  All rights reserved.
 #pragma once
 
 #include <chrono>

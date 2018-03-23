@@ -1,3 +1,4 @@
+// Copyright 2018 Toyota Research Institute.  All rights reserved.
 #include <iostream>
 #include <regex>
 #include <string>

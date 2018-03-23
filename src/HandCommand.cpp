@@ -1,3 +1,4 @@
+// Copyright 2018 Toyota Research Institute.  All rights reserved.
 #include <string>
 
 #include "jaguar4x4_arm/AbstractCommunication.h"
