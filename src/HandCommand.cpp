@@ -1,4 +1,5 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
+#include <mutex>
 #include <string>
 
 #include "jaguar4x4_arm/AbstractCommunication.h"
@@ -27,55 +28,58 @@ std::string HandCommand::buildHandCommand(std::string cmd, HandCommand::Joint jo
 
 void HandCommand::rotateHandLeft(int value)
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, value));
 }
 
 void HandCommand::rotateHandRight(int value)
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, value));
 }
 
 void HandCommand::gripperOpen(int value)
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, value));
 }
 
 void HandCommand::gripperClose(int value)
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, value));
 }
 
 void HandCommand::gripperStop()
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, 0));
 }
 
-void HandCommand::configure()
+void HandCommand::configure(uint32_t time_interval_ms)
 {
-  HandSendLock send_lock(send_mutex);
-  // output the following messages every 100 ms
-  comm_->sendCommand("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# 100\r");
+  std::lock_guard<std::mutex> send_lock(send_mutex);
+  // output the following messages every time_interval_ms
+  std::string cmd("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# ");
+  cmd += std::to_string(time_interval_ms);
+  cmd += "\r";
+  comm_->sendCommand(cmd);
 }
 
 void HandCommand::resume()
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("!MG\r");
 }
 
 void HandCommand::eStop()
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("!EX\r");
 }
 
 void HandCommand::ping()
 {
-  HandSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("~MMOD\r");
 }

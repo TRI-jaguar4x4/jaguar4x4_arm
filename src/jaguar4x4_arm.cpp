@@ -2,10 +2,12 @@
 #include <atomic>
 #include <chrono>
 #include <future>
+#include <mutex>
 #include <string>
 #include <thread>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
+//#include "jaguar4x4_arm_msgs/msg/lift.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
 #include "jaguar4x4_arm/ArmReceive.h"
 #include "jaguar4x4_arm/HandCommand.h"
@@ -14,6 +16,22 @@
 #include "rclcpp/rclcpp.hpp"
 
 using namespace std::chrono_literals;
+
+class SensorFrameLock {
+public:
+  SensorFrameLock(std::mutex &mtx) : mtx_(mtx)
+  {
+    mtx.lock();
+  }
+
+  ~SensorFrameLock()
+  {
+    mtx_.unlock();
+  }
+
+private:
+  std::mutex &mtx_;
+};
 
 class Jaguar4x4Arm : public rclcpp::Node
 {
@@ -42,14 +60,18 @@ public:
                                 this, std::placeholders::_1),
         z_position_qos_profile);
 
-    timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(Jaguar4x4Arm::kTimerIntervalMS),
-      std::bind(&Jaguar4x4Arm::timerCallback, this));
+    ping_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(Jaguar4x4Arm::kPingTimerIntervalMS),
+      std::bind(&Jaguar4x4Arm::pingTimerCallback, this));
 
-    lift_cmd_->configure();
+    pub_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(Jaguar4x4Arm::kPubTimerIntervalMS),
+      std::bind(&Jaguar4x4Arm::pubTimerCallback, this));
+
+    lift_cmd_->configure(kPubTimerIntervalMS);
     lift_cmd_->resume();
 
-    hand_cmd_->configure();
+    hand_cmd_->configure(kPubTimerIntervalMS);
     hand_cmd_->resume();
 
     future_ = exit_signal_.get_future();
@@ -68,13 +90,15 @@ public:
   }
 
 private:
+  // TODO:  figure out why static isn't working (linker unhappiness mystery)
+  const uint32_t kPubTimerIntervalMS = 100;
+
   // TODO: find out how long it takes the robot to respond.
   // Bumping kPingRecvPercentage_ down to .6 from .8 seems to make things work
-  // TODO:  figure out why static isn't working (linker unhappiness mystery)
-  const uint32_t kTimerIntervalMS = 100;
+  const uint32_t kPingTimerIntervalMS = 100;
   const uint32_t kWatchdogIntervalMS = 500;
   static constexpr double   kPingRecvPercentage = 0.6;
-  const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS/kTimerIntervalMS;
+  const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS/kPingTimerIntervalMS;
   const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval*kPingRecvPercentage;
 
   // clalancette: To test this by hand, the following command-line can
@@ -359,7 +383,11 @@ private:
     } while (status == std::future_status::timeout);
   }
 
-  void timerCallback()
+  void pubTimerCallback()
+  {
+  }
+
+  void pingTimerCallback()
   {
     // NOTE:  this implementation causes accepting_commands_ to be false
     // for the first 500ms of operation
@@ -393,7 +421,8 @@ private:
   std::unique_ptr<HandCommand> hand_cmd_;
   std::unique_ptr<ArmReceive>  hand_rcv_;
   int64_t                      last_stamp_ = 0;
-  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr ping_timer_;
+  rclcpp::TimerBase::SharedPtr pub_timer_;
   std::thread                  arm_recv_thread_;
   std::thread                  hand_recv_thread_;
   std::promise<void>           exit_signal_;
@@ -402,6 +431,7 @@ private:
   std::atomic<uint32_t>        num_lift_pings_recvd_;
   std::atomic<uint32_t>        num_hand_pings_recvd_;
   std::atomic<bool>            accepting_commands_;
+  std::mutex                   sensor_frame_mutex_;
 };
 
 int main(int argc, char * argv[])

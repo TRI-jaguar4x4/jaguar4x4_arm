@@ -5,22 +5,6 @@
 
 #include "AbstractCommunication.h"
 
-class ArmSendLock {
-public:
-  ArmSendLock(std::mutex &mtx) : mtx_(mtx)
-  {
-    mtx.lock();
-  }
-
-  ~ArmSendLock()
-  {
-    mtx_.unlock();
-  }
-
-private:
-  std::mutex &mtx_;
-};
-
 class ArmCommand {
  public:
   enum class Joint {
@@ -32,7 +16,7 @@ class ArmCommand {
   // TODO: parameterize "how much" to move the arm up/down"
   void moveArmUp(ArmCommand::Joint arm, int value);
   void moveArmDown(ArmCommand::Joint arm, int value);
-  void configure();
+  void configure(uint32_t time_interval_ms);
   void resume();
   void eStop();
   void ping();

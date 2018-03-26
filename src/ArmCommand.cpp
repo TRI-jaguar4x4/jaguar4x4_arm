@@ -1,4 +1,5 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
+#include <mutex>
 #include <string>
 
 #include "jaguar4x4_arm/AbstractCommunication.h"
@@ -26,37 +27,40 @@ std::string ArmCommand::buildArmCommand(ArmCommand::Joint arm, int value)
 
 void ArmCommand::moveArmUp(ArmCommand::Joint arm, int value)
 {
-  ArmSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildArmCommand(arm, value));
 }
 
 void ArmCommand::moveArmDown(ArmCommand::Joint arm, int value)
 {
-  ArmSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(buildArmCommand(arm, value));
 }
 
-void ArmCommand::configure()
+void ArmCommand::configure(uint32_t time_interval_ms)
 {
-  ArmSendLock send_lock(send_mutex);
-  // output the following messages every 100 ms
-  comm_->sendCommand("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# 100\r");
+  std::lock_guard<std::mutex> send_lock(send_mutex);
+  // output the following messages every time_interval_ms
+  std::string cmd("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# ");
+  cmd += std::to_string(time_interval_ms);
+  cmd += "\r";
+  comm_->sendCommand(cmd);
 }
 
 void ArmCommand::resume()
 {
-  ArmSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("!MG\r");
 }
 
 void ArmCommand::eStop()
 {
-  ArmSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("!EX\r");
 }
 
 void ArmCommand::ping()
 {
-  ArmSendLock send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand("~MMOD\r");
 }

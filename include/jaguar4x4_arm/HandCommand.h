@@ -5,22 +5,6 @@
 
 #include "AbstractCommunication.h"
 
-class HandSendLock {
-public:
-  HandSendLock(std::mutex &mtx) : mtx_(mtx)
-  {
-    mtx.lock();
-  }
-
-  ~HandSendLock()
-  {
-    mtx_.unlock();
-  }
-
-private:
-  std::mutex &mtx_;
-};
-
 class HandCommand {
  public:
   enum class Joint {
@@ -35,7 +19,7 @@ class HandCommand {
   void gripperOpen(int value);
   void gripperClose(int value);
   void gripperStop();
-  void configure();
+  void configure(uint32_t time_interval_ms);
   void resume();
   void eStop();
   void ping();
