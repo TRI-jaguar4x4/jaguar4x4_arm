@@ -145,6 +145,7 @@ private:
       catch (...) {
         std::cerr << "threw\n";
       }
+      std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       for(std::unique_ptr<AbstractArmMsg>& msg : arm_msgs) {
         switch(msg->getType()) {
           case AbstractArmMsg::MessageType::motor_amperage:
@@ -152,6 +153,8 @@ private:
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(msg.get());
             std::cerr << "motor_amperage: " << motor_amp->motor_amp_1_ << " "
                       << motor_amp->motor_amp_2_ << "\n";
+            lift_pub_msg_->arm.amp_1 = motor_amp->motor_amp_1_;
+            lift_pub_msg_->arm.amp_2 = motor_amp->motor_amp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_temperature:
@@ -162,6 +165,8 @@ private:
                       << motor_temp->motor_temp_1_ << " "
                       << motor_temp->motor_temp_adc_2_ << " "
                       << motor_temp->motor_temp_2_ << " " << "\n";
+            lift_pub_msg_->arm.motor_temp_1 = motor_temp->motor_temp_1_;
+            lift_pub_msg_->arm.motor_temp_2 = motor_temp->motor_temp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::encoder_position:
@@ -171,14 +176,22 @@ private:
             std::cerr << "encoder_position: "
                       << motor_enc_pos->encoder_pos_1_ << " "
                       << motor_enc_pos->encoder_pos_2_ << "\n";
+            lift_pub_msg_->arm.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
+            lift_pub_msg_->arm.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_power:
           {
+            // TODO we've seen this coming out negative... what's up with that?
+            // TODO what are the units?  What does this number mean?
+            // 25 for power 1 and 0 for power 2 on the arm,
+            // -22 and -1 for power on the arm?
             MotorPowerMsg *motor_power =
               dynamic_cast<MotorPowerMsg*>(msg.get());
             std::cerr << "motor_power: " << motor_power->motor_power_1_ << " "
                       << motor_power->motor_power_2_ << "\n";
+            lift_pub_msg_->arm.motor_power_1 = motor_power->motor_power_1_;
+            lift_pub_msg_->arm.motor_power_2 = motor_power->motor_power_2_;
           }
           break;
           case AbstractArmMsg::MessageType::encoder_velocity:
@@ -188,6 +201,8 @@ private:
             std::cerr << "encoder_velocity: "
                       << motor_enc_vel->encoder_velocity_1_ << " "
                       << motor_enc_vel->encoder_velocity_2_ << "\n";
+            lift_pub_msg_->arm.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
+            lift_pub_msg_->arm.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
           break;
           case AbstractArmMsg::MessageType::board_temperature:
@@ -197,6 +212,8 @@ private:
             std::cerr << "board_temperature: "
                       << motor_board_temp->board_temp_1_ << " "
                       << motor_board_temp->board_temp_2_ << "\n";
+            lift_pub_msg_->arm.board_temp_1 = motor_board_temp->board_temp_1_;
+            lift_pub_msg_->arm.board_temp_2 = motor_board_temp->board_temp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::voltage:
@@ -206,6 +223,9 @@ private:
             std::cerr << "voltage: " << motor_voltage->drv_voltage_ << " "
                       << motor_voltage->bat_voltage_ << " "
                       << motor_voltage->reg_5_voltage_ << "\n";
+            lift_pub_msg_->arm.volt_main = motor_voltage->bat_voltage_;
+            lift_pub_msg_->arm.volt_12v = motor_voltage->drv_voltage_;
+            lift_pub_msg_->arm.volt_5v = motor_voltage->reg_5_voltage_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_mode:
@@ -221,6 +241,14 @@ private:
                                      <MotorModeMsg::MotorControlMode>::type>
                                      (motor_mode->mode_channel_2_)
                       << "\n";
+            lift_pub_msg_->arm.motor_control_mode_1 =
+              static_cast<std::underlying_type
+                          <MotorModeMsg::MotorControlMode>::type>
+              (motor_mode->mode_channel_1_);
+            lift_pub_msg_->arm.motor_control_mode_2 =
+              static_cast<std::underlying_type
+                          <MotorModeMsg::MotorControlMode>::type>
+              (motor_mode->mode_channel_2_);
           }
           break;
           case AbstractArmMsg::MessageType::motor_flags:
@@ -233,16 +261,23 @@ private:
                       << " undervoltage=" << motor_flags->undervoltage_
                       << " short=" << motor_flags->short_
                       <<  " ESTOP=" << motor_flags->ESTOP_ << "\n";
+            lift_pub_msg_->arm.overheat = motor_flags->overheat_;
+            lift_pub_msg_->arm.overvoltage = motor_flags->overvoltage_;
+            lift_pub_msg_->arm.undervoltage = motor_flags->undervoltage_;
+            lift_pub_msg_->arm.e_short = motor_flags->short_;
+            lift_pub_msg_->arm.estop = motor_flags->ESTOP_;
           }
           break;
           case AbstractArmMsg::MessageType::command_accepted:
           {
             std::cerr << "command_accepted\n";
+            lift_pub_msg_->arm.last_cmd_ack = true;
           }
           break;
           case AbstractArmMsg::MessageType::command_rejected:
           {
             std::cerr << "command_rejected\n";
+            lift_pub_msg_->arm.last_cmd_ack = false;
           }
           break;
         }
@@ -264,6 +299,7 @@ private:
       catch (...) {
         std::cerr << "threw\n";
       }
+      std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       for(std::unique_ptr<AbstractArmMsg>& msg : hand_msgs) {
         switch(msg->getType()) {
           case AbstractArmMsg::MessageType::motor_amperage:
@@ -271,6 +307,8 @@ private:
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(msg.get());
             std::cerr << "        motor_amperage: " << motor_amp->motor_amp_1_ << " "
                       << motor_amp->motor_amp_2_ << "\n";
+            lift_pub_msg_->hand.amp_1 = motor_amp->motor_amp_1_;
+            lift_pub_msg_->hand.amp_2 = motor_amp->motor_amp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_temperature:
@@ -281,23 +319,33 @@ private:
                       << motor_temp->motor_temp_1_ << " "
                       << motor_temp->motor_temp_adc_2_ << " "
                       << motor_temp->motor_temp_2_ << " " << "\n";
+            lift_pub_msg_->hand.motor_temp_1 = motor_temp->motor_temp_1_;
+            lift_pub_msg_->hand.motor_temp_2 = motor_temp->motor_temp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::encoder_position:
           {
+            // TODO we've seen this coming out negative... what's up with that?
             MotorEncPosMsg *motor_enc_pos =
               dynamic_cast<MotorEncPosMsg*>(msg.get());
             std::cerr << "        encoder_position: "
                       << motor_enc_pos->encoder_pos_1_ << " "
                       << motor_enc_pos->encoder_pos_2_ << "\n";
+            lift_pub_msg_->hand.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
+            lift_pub_msg_->hand.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_power:
           {
+            // TODO what are the units?  What does this number mean?
+            // 25 for power 1 and 0 for power 2 on the arm,
+            // -22 and -1 for power on the arm?
             MotorPowerMsg *motor_power =
               dynamic_cast<MotorPowerMsg*>(msg.get());
             std::cerr << "        motor_power: " << motor_power->motor_power_1_ << " "
                       << motor_power->motor_power_2_ << "\n";
+            lift_pub_msg_->hand.motor_power_1 = motor_power->motor_power_1_;
+            lift_pub_msg_->hand.motor_power_2 = motor_power->motor_power_2_;
           }
           break;
           case AbstractArmMsg::MessageType::encoder_velocity:
@@ -307,6 +355,8 @@ private:
             std::cerr << "        encoder_velocity: "
                       << motor_enc_vel->encoder_velocity_1_ << " "
                       << motor_enc_vel->encoder_velocity_2_ << "\n";
+            lift_pub_msg_->hand.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
+            lift_pub_msg_->hand.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
           break;
           case AbstractArmMsg::MessageType::board_temperature:
@@ -316,6 +366,8 @@ private:
             std::cerr << "        board_temperature: "
                       << motor_board_temp->board_temp_1_ << " "
                       << motor_board_temp->board_temp_2_ << "\n";
+            lift_pub_msg_->hand.board_temp_1 = motor_board_temp->board_temp_1_;
+            lift_pub_msg_->hand.board_temp_2 = motor_board_temp->board_temp_2_;
           }
           break;
           case AbstractArmMsg::MessageType::voltage:
@@ -325,6 +377,9 @@ private:
             std::cerr << "        voltage: " << motor_voltage->drv_voltage_ << " "
                       << motor_voltage->bat_voltage_ << " "
                       << motor_voltage->reg_5_voltage_ << "\n";
+            lift_pub_msg_->hand.volt_main = motor_voltage->bat_voltage_;
+            lift_pub_msg_->hand.volt_12v = motor_voltage->drv_voltage_;
+            lift_pub_msg_->hand.volt_5v = motor_voltage->reg_5_voltage_;
           }
           break;
           case AbstractArmMsg::MessageType::motor_mode:
@@ -340,6 +395,14 @@ private:
                                      <MotorModeMsg::MotorControlMode>::type>
                                      (motor_mode->mode_channel_2_)
                       << "\n";
+            lift_pub_msg_->hand.motor_control_mode_1 =
+              static_cast<std::underlying_type
+                          <MotorModeMsg::MotorControlMode>::type>
+              (motor_mode->mode_channel_1_);
+            lift_pub_msg_->hand.motor_control_mode_2 =
+              static_cast<std::underlying_type
+                          <MotorModeMsg::MotorControlMode>::type>
+              (motor_mode->mode_channel_2_);
           }
           break;
           case AbstractArmMsg::MessageType::motor_flags:
@@ -352,16 +415,23 @@ private:
                       << " undervoltage=" << motor_flags->undervoltage_
                       << " short=" << motor_flags->short_
                       <<  " ESTOP=" << motor_flags->ESTOP_ << "\n";
+            lift_pub_msg_->hand.overheat = motor_flags->overheat_;
+            lift_pub_msg_->hand.overvoltage = motor_flags->overvoltage_;
+            lift_pub_msg_->hand.undervoltage = motor_flags->undervoltage_;
+            lift_pub_msg_->hand.e_short = motor_flags->short_;
+            lift_pub_msg_->hand.estop = motor_flags->ESTOP_;
           }
           break;
           case AbstractArmMsg::MessageType::command_accepted:
           {
             std::cerr << "        command_accepted\n";
+            lift_pub_msg_->hand.last_cmd_ack = true;
           }
           break;
           case AbstractArmMsg::MessageType::command_rejected:
           {
             std::cerr << "        command_rejected\n";
+            lift_pub_msg_->hand.last_cmd_ack = false;
           }
           break;
         }
@@ -372,7 +442,19 @@ private:
 
   void pubTimerCallback()
   {
+    // to set timestamp
+    rcutils_time_point_value_t now;
+    if (rcutils_system_time_now(&now) != RCUTILS_RET_OK) {
+      std::cerr << "unable to access time\n";
+      return;
+    }
+
     std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
+
+    lift_pub_msg_->header.stamp.sec = RCL_NS_TO_S(now);
+    lift_pub_msg_->header.stamp.nanosec =
+      now - RCL_S_TO_NS(lift_pub_msg_->header.stamp.sec);
+
     lift_pub_->publish(lift_pub_msg_);
   }
 
