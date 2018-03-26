@@ -70,6 +70,7 @@ public:
 private:
   // TODO: find out how long it takes the robot to respond.
   // Bumping kPingRecvPercentage_ down to .6 from .8 seems to make things work
+  // TODO:  figure out why static isn't working (linker unhappiness mystery)
   const uint32_t kTimerIntervalMS = 100;
   const uint32_t kWatchdogIntervalMS = 500;
   static constexpr double   kPingRecvPercentage = 0.6;
@@ -81,6 +82,10 @@ private:
   // ros2 topic pub /z_position geometry_msgs/PoseStamped "{header:{stamp:{sec: 4, nanosec: 14}, frame_id: 'frame'}, pose:{position:{x: 1, y: 2, z: 3}, orientation:{x: 4, y: 5, z: 6, w: 7}}}"
   void liftCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
   {
+    if (!accepting_commands_) {
+      return;
+    }
+
     int64_t this_stamp;
     this_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
