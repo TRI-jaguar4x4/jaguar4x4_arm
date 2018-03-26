@@ -7,7 +7,7 @@
 #include <thread>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
-//#include "jaguar4x4_arm_msgs/msg/lift.hpp"
+#include "jaguar4x4_arm_msgs/msg/lift.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
 #include "jaguar4x4_arm/ArmReceive.h"
 #include "jaguar4x4_arm/HandCommand.h"
@@ -16,22 +16,6 @@
 #include "rclcpp/rclcpp.hpp"
 
 using namespace std::chrono_literals;
-
-class SensorFrameLock {
-public:
-  SensorFrameLock(std::mutex &mtx) : mtx_(mtx)
-  {
-    mtx.lock();
-  }
-
-  ~SensorFrameLock()
-  {
-    mtx_.unlock();
-  }
-
-private:
-  std::mutex &mtx_;
-};
 
 class Jaguar4x4Arm : public rclcpp::Node
 {
@@ -59,6 +43,9 @@ public:
         "z_position", std::bind(&Jaguar4x4Arm::liftCallback,
                                 this, std::placeholders::_1),
         z_position_qos_profile);
+
+    lift_pub_msg_ = std::make_shared<jaguar4x4_arm_msgs::msg::Lift>();
+    lift_pub_ = this->create_publisher<jaguar4x4_arm_msgs::msg::Lift>("liftInfo");
 
     ping_timer_ = this->create_wall_timer(
       std::chrono::milliseconds(Jaguar4x4Arm::kPingTimerIntervalMS),
@@ -385,6 +372,8 @@ private:
 
   void pubTimerCallback()
   {
+    std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
+    lift_pub_->publish(lift_pub_msg_);
   }
 
   void pingTimerCallback()
@@ -432,6 +421,8 @@ private:
   std::atomic<uint32_t>        num_hand_pings_recvd_;
   std::atomic<bool>            accepting_commands_;
   std::mutex                   sensor_frame_mutex_;
+  rclcpp::Publisher<jaguar4x4_arm_msgs::msg::Lift>::SharedPtr lift_pub_;
+  std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift> lift_pub_msg_;
 };
 
 int main(int argc, char * argv[])
