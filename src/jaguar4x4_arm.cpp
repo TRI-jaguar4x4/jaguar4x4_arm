@@ -1,4 +1,5 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <string>
@@ -18,7 +19,9 @@ class Jaguar4x4Arm : public rclcpp::Node
 {
 public:
   Jaguar4x4Arm(const std::string& ip, uint16_t arm_port, uint16_t hand_port)
-    : Node("jaguar4x4Arm"), arm_recv_thread_(), hand_recv_thread_()
+    : Node("jaguar4x4Arm"), arm_recv_thread_(), hand_recv_thread_(),
+      num_pings_sent_(0), num_lift_pings_recvd_(0), num_hand_pings_recvd_(0),
+      accepting_commands_(false)
   {
     lift_cmd_ = std::make_unique<ArmCommand>(&board_1_comm_);
     lift_rcv_ = std::make_unique<ArmReceive>(&board_1_comm_);
@@ -40,7 +43,8 @@ public:
         z_position_qos_profile);
 
     timer_ = this->create_wall_timer(
-      500ms, std::bind(&Jaguar4x4Arm::timerCallback, this));
+      std::chrono::milliseconds(Jaguar4x4Arm::kTimerIntervalMS),
+      std::bind(&Jaguar4x4Arm::timerCallback, this));
 
     lift_cmd_->configure();
     lift_cmd_->resume();
@@ -64,6 +68,14 @@ public:
   }
 
 private:
+  // TODO: find out how long it takes the robot to respond.
+  // Bumping kPingRecvPercentage_ down to .6 from .8 seems to make things work
+  const uint32_t kTimerIntervalMS = 100;
+  const uint32_t kWatchdogIntervalMS = 500;
+  static constexpr double   kPingRecvPercentage = 0.6;
+  const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS/kTimerIntervalMS;
+  const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval*kPingRecvPercentage;
+
   // clalancette: To test this by hand, the following command-line can
   // be used:
   // ros2 topic pub /z_position geometry_msgs/PoseStamped "{header:{stamp:{sec: 4, nanosec: 14}, frame_id: 'frame'}, pose:{position:{x: 1, y: 2, z: 3}, orientation:{x: 4, y: 5, z: 6, w: 7}}}"
@@ -182,6 +194,7 @@ private:
           break;
           case AbstractArmMsg::MessageType::motor_mode:
           {
+            num_lift_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
             std::cerr << "motor_mode: "
                       << static_cast<std::underlying_type
@@ -300,6 +313,7 @@ private:
           break;
           case AbstractArmMsg::MessageType::motor_mode:
           {
+            num_hand_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
             std::cerr << "        motor_mode: "
                       << static_cast<std::underlying_type
@@ -342,8 +356,28 @@ private:
 
   void timerCallback()
   {
+    // NOTE:  this implementation causes accepting_commands_ to be false
+    // for the first 500ms of operation
     lift_cmd_->ping();
     hand_cmd_->ping();
+    num_pings_sent_++;
+
+    if (num_pings_sent_ < kPingsPerWatchdogInterval) {
+      return;
+    }
+
+    std::cerr << "num_lift_pings_recvd_ = " << num_lift_pings_recvd_ <<  " num_hand_pings_recvd_ = " << num_hand_pings_recvd_ << "\n";
+    if (num_lift_pings_recvd_ < kMinPingsExpected
+        || num_hand_pings_recvd_ < kMinPingsExpected) {
+      std::cerr << "haven't heard from the robot... no longer accepting commands\n";
+      accepting_commands_ = false;
+    } else {
+      std::cerr << "have heard from the robot... go ahead and command it\n";
+      accepting_commands_ = true;
+    }
+    num_lift_pings_recvd_ = 0;
+    num_hand_pings_recvd_ = 0;
+    num_pings_sent_ = 0;
   }
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
@@ -359,6 +393,10 @@ private:
   std::thread                  hand_recv_thread_;
   std::promise<void>           exit_signal_;
   std::shared_future<void>     future_;
+  uint32_t                     num_pings_sent_;
+  std::atomic<uint32_t>        num_lift_pings_recvd_;
+  std::atomic<uint32_t>        num_hand_pings_recvd_;
+  std::atomic<bool>            accepting_commands_;
 };
 
 int main(int argc, char * argv[])
