@@ -106,6 +106,9 @@ private:
       return;
     }
     last_stamp_ = this_stamp;
+    // TODO - transform these numbers... we're passing the twist numbers
+    // down directly and that's not right
+
     // move arm up/down
     if (msg->pose.position.z > 0) {
       lift_cmd_->moveArmDown(ArmCommand::Joint::lower_arm, msg->pose.position.z);
