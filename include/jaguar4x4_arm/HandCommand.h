@@ -30,10 +30,10 @@ class HandCommand {
 
   HandCommand(AbstractCommunication* comm);
   // TODO: parameterize "how much" to move the hand up/down"
-  void rotateHandLeft();
-  void rotateHandRight();
-  void gripperOpen();
-  void gripperClose();
+  void rotateHandLeft(int value);
+  void rotateHandRight(int value);
+  void gripperOpen(int value);
+  void gripperClose(int value);
   void gripperStop();
   void configure();
   void resume();

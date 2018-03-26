@@ -30,8 +30,8 @@ class ArmCommand {
 
   ArmCommand(AbstractCommunication* comm);
   // TODO: parameterize "how much" to move the arm up/down"
-  void moveArmUp(ArmCommand::Joint arm);
-  void moveArmDown(ArmCommand::Joint arm);
+  void moveArmUp(ArmCommand::Joint arm, int value);
+  void moveArmDown(ArmCommand::Joint arm, int value);
   void configure();
   void resume();
   void eStop();

@@ -25,28 +25,28 @@ std::string HandCommand::buildHandCommand(std::string cmd, HandCommand::Joint jo
   return hand_command;
 }
 
-void HandCommand::rotateHandLeft()
+void HandCommand::rotateHandLeft(int value)
 {
   HandSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, 30));
+  comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, value));
 }
 
-void HandCommand::rotateHandRight()
+void HandCommand::rotateHandRight(int value)
 {
   HandSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, -30));
+  comm_->sendCommand(buildHandCommand("!PR", HandCommand::Joint::rotator, value));
 }
 
-void HandCommand::gripperOpen()
+void HandCommand::gripperOpen(int value)
 {
   HandSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, 200));
+  comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, value));
 }
 
-void HandCommand::gripperClose()
+void HandCommand::gripperClose(int value)
 {
   HandSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, -200));
+  comm_->sendCommand(buildHandCommand("!G", HandCommand::Joint::gripper, value));
 }
 
 void HandCommand::gripperStop()

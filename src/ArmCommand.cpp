@@ -24,16 +24,16 @@ std::string ArmCommand::buildArmCommand(ArmCommand::Joint arm, int value)
   return arm_command;
 }
 
-void ArmCommand::moveArmUp(ArmCommand::Joint arm)
+void ArmCommand::moveArmUp(ArmCommand::Joint arm, int value)
 {
   ArmSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildArmCommand(arm, -30));
+  comm_->sendCommand(buildArmCommand(arm, value));
 }
 
-void ArmCommand::moveArmDown(ArmCommand::Joint arm)
+void ArmCommand::moveArmDown(ArmCommand::Joint arm, int value)
 {
   ArmSendLock send_lock(send_mutex);
-  comm_->sendCommand(buildArmCommand(arm, 30));
+  comm_->sendCommand(buildArmCommand(arm, value));
 }
 
 void ArmCommand::configure()
