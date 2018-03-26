@@ -135,7 +135,6 @@ private:
   void armRecvThread(std::shared_future<void> local_future,
                     std::unique_ptr<ArmReceive> lift_recv)
   {
-    std::cerr << "entered the callback\n";
     std::future_status status;
     std::vector<std::unique_ptr<AbstractArmMsg>> arm_msgs;
     do {
@@ -151,8 +150,6 @@ private:
           case AbstractArmMsg::MessageType::motor_amperage:
           {
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(msg.get());
-            std::cerr << "motor_amperage: " << motor_amp->motor_amp_1_ << " "
-                      << motor_amp->motor_amp_2_ << "\n";
             lift_pub_msg_->arm.amp_1 = motor_amp->motor_amp_1_;
             lift_pub_msg_->arm.amp_2 = motor_amp->motor_amp_2_;
           }
@@ -160,11 +157,6 @@ private:
           case AbstractArmMsg::MessageType::motor_temperature:
           {
             MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg.get());
-            std::cerr << "motor_temperature: "
-                      << motor_temp->motor_temp_adc_1_ << " "
-                      << motor_temp->motor_temp_1_ << " "
-                      << motor_temp->motor_temp_adc_2_ << " "
-                      << motor_temp->motor_temp_2_ << " " << "\n";
             lift_pub_msg_->arm.motor_temp_1 = motor_temp->motor_temp_1_;
             lift_pub_msg_->arm.motor_temp_2 = motor_temp->motor_temp_2_;
           }
@@ -173,9 +165,6 @@ private:
           {
             MotorEncPosMsg *motor_enc_pos =
               dynamic_cast<MotorEncPosMsg*>(msg.get());
-            std::cerr << "encoder_position: "
-                      << motor_enc_pos->encoder_pos_1_ << " "
-                      << motor_enc_pos->encoder_pos_2_ << "\n";
             lift_pub_msg_->arm.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
             lift_pub_msg_->arm.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
@@ -188,8 +177,6 @@ private:
             // -22 and -1 for power on the arm?
             MotorPowerMsg *motor_power =
               dynamic_cast<MotorPowerMsg*>(msg.get());
-            std::cerr << "motor_power: " << motor_power->motor_power_1_ << " "
-                      << motor_power->motor_power_2_ << "\n";
             lift_pub_msg_->arm.motor_power_1 = motor_power->motor_power_1_;
             lift_pub_msg_->arm.motor_power_2 = motor_power->motor_power_2_;
           }
@@ -198,9 +185,6 @@ private:
           {
             MotorEncVelMsg *motor_enc_vel =
               dynamic_cast<MotorEncVelMsg*>(msg.get());
-            std::cerr << "encoder_velocity: "
-                      << motor_enc_vel->encoder_velocity_1_ << " "
-                      << motor_enc_vel->encoder_velocity_2_ << "\n";
             lift_pub_msg_->arm.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
             lift_pub_msg_->arm.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
@@ -209,9 +193,6 @@ private:
           {
             MotorBoardTempMsg *motor_board_temp =
               dynamic_cast<MotorBoardTempMsg*>(msg.get());
-            std::cerr << "board_temperature: "
-                      << motor_board_temp->board_temp_1_ << " "
-                      << motor_board_temp->board_temp_2_ << "\n";
             lift_pub_msg_->arm.board_temp_1 = motor_board_temp->board_temp_1_;
             lift_pub_msg_->arm.board_temp_2 = motor_board_temp->board_temp_2_;
           }
@@ -220,9 +201,6 @@ private:
           {
             MotorVoltageMsg *motor_voltage =
               dynamic_cast<MotorVoltageMsg*>(msg.get());
-            std::cerr << "voltage: " << motor_voltage->drv_voltage_ << " "
-                      << motor_voltage->bat_voltage_ << " "
-                      << motor_voltage->reg_5_voltage_ << "\n";
             lift_pub_msg_->arm.volt_main = motor_voltage->bat_voltage_;
             lift_pub_msg_->arm.volt_12v = motor_voltage->drv_voltage_;
             lift_pub_msg_->arm.volt_5v = motor_voltage->reg_5_voltage_;
@@ -232,15 +210,6 @@ private:
           {
             num_lift_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
-            std::cerr << "motor_mode: "
-                      << static_cast<std::underlying_type
-                                     <MotorModeMsg::MotorControlMode>::type>
-                                     (motor_mode->mode_channel_1_)
-                      << " "
-                      << static_cast<std::underlying_type
-                                     <MotorModeMsg::MotorControlMode>::type>
-                                     (motor_mode->mode_channel_2_)
-                      << "\n";
             lift_pub_msg_->arm.motor_control_mode_1 =
               static_cast<std::underlying_type
                           <MotorModeMsg::MotorControlMode>::type>
@@ -255,12 +224,6 @@ private:
           {
             MotorFlagsMsg *motor_flags =
               dynamic_cast<MotorFlagsMsg*>(msg.get());
-            std::cerr << "motor_flags: "
-                      << "overheat=" << motor_flags->overheat_
-                      << " overvoltage=" << motor_flags->overvoltage_
-                      << " undervoltage=" << motor_flags->undervoltage_
-                      << " short=" << motor_flags->short_
-                      <<  " ESTOP=" << motor_flags->ESTOP_ << "\n";
             lift_pub_msg_->arm.overheat = motor_flags->overheat_;
             lift_pub_msg_->arm.overvoltage = motor_flags->overvoltage_;
             lift_pub_msg_->arm.undervoltage = motor_flags->undervoltage_;
@@ -270,13 +233,11 @@ private:
           break;
           case AbstractArmMsg::MessageType::command_accepted:
           {
-            std::cerr << "command_accepted\n";
             lift_pub_msg_->arm.last_cmd_ack = true;
           }
           break;
           case AbstractArmMsg::MessageType::command_rejected:
           {
-            std::cerr << "command_rejected\n";
             lift_pub_msg_->arm.last_cmd_ack = false;
           }
           break;
@@ -289,7 +250,6 @@ private:
   void handRecvThread(std::shared_future<void> local_future,
                     std::unique_ptr<ArmReceive> hand_recv)
   {
-    std::cerr << "entered the hand callback\n";
     std::future_status status;
     std::vector<std::unique_ptr<AbstractArmMsg>> hand_msgs;
     do {
@@ -305,8 +265,6 @@ private:
           case AbstractArmMsg::MessageType::motor_amperage:
           {
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(msg.get());
-            std::cerr << "        motor_amperage: " << motor_amp->motor_amp_1_ << " "
-                      << motor_amp->motor_amp_2_ << "\n";
             lift_pub_msg_->hand.amp_1 = motor_amp->motor_amp_1_;
             lift_pub_msg_->hand.amp_2 = motor_amp->motor_amp_2_;
           }
@@ -314,11 +272,6 @@ private:
           case AbstractArmMsg::MessageType::motor_temperature:
           {
             MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(msg.get());
-            std::cerr << "        motor_temperature: "
-                      << motor_temp->motor_temp_adc_1_ << " "
-                      << motor_temp->motor_temp_1_ << " "
-                      << motor_temp->motor_temp_adc_2_ << " "
-                      << motor_temp->motor_temp_2_ << " " << "\n";
             lift_pub_msg_->hand.motor_temp_1 = motor_temp->motor_temp_1_;
             lift_pub_msg_->hand.motor_temp_2 = motor_temp->motor_temp_2_;
           }
@@ -328,9 +281,6 @@ private:
             // TODO we've seen this coming out negative... what's up with that?
             MotorEncPosMsg *motor_enc_pos =
               dynamic_cast<MotorEncPosMsg*>(msg.get());
-            std::cerr << "        encoder_position: "
-                      << motor_enc_pos->encoder_pos_1_ << " "
-                      << motor_enc_pos->encoder_pos_2_ << "\n";
             lift_pub_msg_->hand.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
             lift_pub_msg_->hand.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
@@ -342,8 +292,6 @@ private:
             // -22 and -1 for power on the arm?
             MotorPowerMsg *motor_power =
               dynamic_cast<MotorPowerMsg*>(msg.get());
-            std::cerr << "        motor_power: " << motor_power->motor_power_1_ << " "
-                      << motor_power->motor_power_2_ << "\n";
             lift_pub_msg_->hand.motor_power_1 = motor_power->motor_power_1_;
             lift_pub_msg_->hand.motor_power_2 = motor_power->motor_power_2_;
           }
@@ -352,9 +300,6 @@ private:
           {
             MotorEncVelMsg *motor_enc_vel =
               dynamic_cast<MotorEncVelMsg*>(msg.get());
-            std::cerr << "        encoder_velocity: "
-                      << motor_enc_vel->encoder_velocity_1_ << " "
-                      << motor_enc_vel->encoder_velocity_2_ << "\n";
             lift_pub_msg_->hand.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
             lift_pub_msg_->hand.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
@@ -363,9 +308,6 @@ private:
           {
             MotorBoardTempMsg *motor_board_temp =
               dynamic_cast<MotorBoardTempMsg*>(msg.get());
-            std::cerr << "        board_temperature: "
-                      << motor_board_temp->board_temp_1_ << " "
-                      << motor_board_temp->board_temp_2_ << "\n";
             lift_pub_msg_->hand.board_temp_1 = motor_board_temp->board_temp_1_;
             lift_pub_msg_->hand.board_temp_2 = motor_board_temp->board_temp_2_;
           }
@@ -374,9 +316,6 @@ private:
           {
             MotorVoltageMsg *motor_voltage =
               dynamic_cast<MotorVoltageMsg*>(msg.get());
-            std::cerr << "        voltage: " << motor_voltage->drv_voltage_ << " "
-                      << motor_voltage->bat_voltage_ << " "
-                      << motor_voltage->reg_5_voltage_ << "\n";
             lift_pub_msg_->hand.volt_main = motor_voltage->bat_voltage_;
             lift_pub_msg_->hand.volt_12v = motor_voltage->drv_voltage_;
             lift_pub_msg_->hand.volt_5v = motor_voltage->reg_5_voltage_;
@@ -386,15 +325,6 @@ private:
           {
             num_hand_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(msg.get());
-            std::cerr << "        motor_mode: "
-                      << static_cast<std::underlying_type
-                                     <MotorModeMsg::MotorControlMode>::type>
-                                     (motor_mode->mode_channel_1_)
-                      << " "
-                      << static_cast<std::underlying_type
-                                     <MotorModeMsg::MotorControlMode>::type>
-                                     (motor_mode->mode_channel_2_)
-                      << "\n";
             lift_pub_msg_->hand.motor_control_mode_1 =
               static_cast<std::underlying_type
                           <MotorModeMsg::MotorControlMode>::type>
@@ -409,12 +339,6 @@ private:
           {
             MotorFlagsMsg *motor_flags =
               dynamic_cast<MotorFlagsMsg*>(msg.get());
-            std::cerr << "        motor_flags: "
-                      << "overheat=" << motor_flags->overheat_
-                      << " overvoltage=" << motor_flags->overvoltage_
-                      << " undervoltage=" << motor_flags->undervoltage_
-                      << " short=" << motor_flags->short_
-                      <<  " ESTOP=" << motor_flags->ESTOP_ << "\n";
             lift_pub_msg_->hand.overheat = motor_flags->overheat_;
             lift_pub_msg_->hand.overvoltage = motor_flags->overvoltage_;
             lift_pub_msg_->hand.undervoltage = motor_flags->undervoltage_;
@@ -424,13 +348,11 @@ private:
           break;
           case AbstractArmMsg::MessageType::command_accepted:
           {
-            std::cerr << "        command_accepted\n";
             lift_pub_msg_->hand.last_cmd_ack = true;
           }
           break;
           case AbstractArmMsg::MessageType::command_rejected:
           {
-            std::cerr << "        command_rejected\n";
             lift_pub_msg_->hand.last_cmd_ack = false;
           }
           break;
@@ -470,13 +392,13 @@ private:
       return;
     }
 
-    std::cerr << "num_lift_pings_recvd_ = " << num_lift_pings_recvd_ <<  " num_hand_pings_recvd_ = " << num_hand_pings_recvd_ << "\n";
+//    std::cerr << "num_lift_pings_recvd_ = " << num_lift_pings_recvd_ <<  " num_hand_pings_recvd_ = " << num_hand_pings_recvd_ << "\n";
     if (num_lift_pings_recvd_ < kMinPingsExpected
         || num_hand_pings_recvd_ < kMinPingsExpected) {
-      std::cerr << "haven't heard from the robot... no longer accepting commands\n";
+//      std::cerr << "haven't heard from the robot... no longer accepting commands\n";
       accepting_commands_ = false;
     } else {
-      std::cerr << "have heard from the robot... go ahead and command it\n";
+//      std::cerr << "have heard from the robot... go ahead and command it\n";
       accepting_commands_ = true;
     }
     num_lift_pings_recvd_ = 0;
