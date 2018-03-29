@@ -2,6 +2,7 @@
 #pragma once
 
 #include <mutex>
+#include <string>
 
 #include "AbstractCommunication.h"
 
@@ -13,7 +14,6 @@ class HandCommand {
   };
 
   HandCommand(AbstractCommunication* comm);
-  // TODO: parameterize "how much" to move the hand up/down"
   void rotateHandLeft(int value);
   void rotateHandRight(int value);
   void gripperOpen(int value);

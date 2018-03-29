@@ -13,7 +13,6 @@ class ArmCommand {
   };
 
   ArmCommand(AbstractCommunication* comm);
-  // TODO: parameterize "how much" to move the arm up/down"
   void moveArmUp(ArmCommand::Joint arm, int value);
   void moveArmDown(ArmCommand::Joint arm, int value);
   void configure(uint32_t time_interval_ms);
