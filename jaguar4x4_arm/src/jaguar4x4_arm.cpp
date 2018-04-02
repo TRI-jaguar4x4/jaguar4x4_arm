@@ -26,13 +26,17 @@ public:
       num_pings_sent_(0), num_lift_pings_recvd_(0), num_hand_pings_recvd_(0),
       accepting_commands_(false)
   {
-    lift_cmd_ = std::make_unique<ArmCommand>(&board_1_comm_);
-    lift_rcv_ = std::make_unique<ArmReceive>(&board_1_comm_);
-    board_1_comm_.connect(ip, arm_port);
+    auto board_1_comm = std::make_shared<Communication>();
+    board_1_comm->connect(ip, arm_port);
 
-    hand_cmd_ = std::make_unique<HandCommand>(&board_2_comm_);
-    hand_rcv_ = std::make_unique<ArmReceive>(&board_2_comm_);
-    board_2_comm_.connect(ip, hand_port);
+    auto board_2_comm = std::make_shared<Communication>();
+    board_2_comm->connect(ip, hand_port);
+
+    lift_cmd_ = std::make_unique<ArmCommand>(board_1_comm);
+    lift_rcv_ = std::make_unique<ArmReceive>(board_1_comm);
+
+    hand_cmd_ = std::make_unique<HandCommand>(board_2_comm);
+    hand_rcv_ = std::make_unique<ArmReceive>(board_2_comm);
 
     rmw_qos_profile_t z_position_qos_profile = rmw_qos_profile_sensor_data;
     z_position_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -411,8 +415,6 @@ private:
   }
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
-  Communication                board_1_comm_;
-  Communication                board_2_comm_;
   std::unique_ptr<ArmCommand>  lift_cmd_;
   std::unique_ptr<ArmReceive>  lift_rcv_;
   std::unique_ptr<HandCommand> hand_cmd_;

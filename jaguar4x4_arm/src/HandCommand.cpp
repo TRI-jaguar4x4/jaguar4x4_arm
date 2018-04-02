@@ -1,4 +1,6 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
+
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -6,7 +8,7 @@
 
 #include "jaguar4x4_arm/HandCommand.h"
 
-HandCommand::HandCommand(AbstractCommunication* comm)
+HandCommand::HandCommand(std::shared_ptr<AbstractCommunication> comm)
   : comm_(comm)
 {
 }

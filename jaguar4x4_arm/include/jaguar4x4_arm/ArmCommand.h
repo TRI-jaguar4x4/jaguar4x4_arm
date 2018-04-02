@@ -1,7 +1,9 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
 #pragma once
 
+#include <memory>
 #include <mutex>
+#include <string>
 
 #include <jaguar4x4_comms/AbstractCommunication.h>
 
@@ -12,7 +14,7 @@ class ArmCommand {
     upper_arm,
   };
 
-  ArmCommand(AbstractCommunication* comm);
+  ArmCommand(std::shared_ptr<AbstractCommunication> comm);
   void moveArmUp(ArmCommand::Joint arm, int value);
   void moveArmDown(ArmCommand::Joint arm, int value);
   void configure(uint32_t time_interval_ms);
@@ -22,6 +24,6 @@ class ArmCommand {
 
 private:
   std::string buildArmCommand(ArmCommand::Joint arm, int value);
-  AbstractCommunication* comm_; // shared_ptr?
+  std::shared_ptr<AbstractCommunication> comm_;
   std::mutex send_mutex;
 };

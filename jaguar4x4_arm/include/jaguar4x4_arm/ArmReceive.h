@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -192,9 +193,9 @@ class MotorCmdRejectedMsg : public AbstractArmMsg {
 
 class ArmReceive {
  public:
-  ArmReceive(AbstractCommunication* comm);
+  ArmReceive(std::shared_ptr<AbstractCommunication> comm);
   std::vector<std::unique_ptr<AbstractArmMsg>> getAndParseMessage();
 
 private:
-  AbstractCommunication* comm_; // shared_ptr?
+  std::shared_ptr<AbstractCommunication> comm_;
 };

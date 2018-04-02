@@ -1,5 +1,6 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
 #include <iostream>
+#include <memory>
 #include <regex>
 #include <string>
 #include <utility>
@@ -88,7 +89,7 @@ MotorTempMsg::MotorTempMsg(uint16_t temp1, uint16_t temp2)
   motor_temp_2_ = adToTemperature(temp2);
 }
 
-ArmReceive::ArmReceive(AbstractCommunication* comm) : comm_(comm)
+ArmReceive::ArmReceive(std::shared_ptr<AbstractCommunication> comm) : comm_(comm)
 {
 }
 
