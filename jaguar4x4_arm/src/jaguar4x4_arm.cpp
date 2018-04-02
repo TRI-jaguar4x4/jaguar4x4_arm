@@ -156,101 +156,10 @@ private:
 
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       if (arm_msg) {
-        switch(arm_msg->getType()) {
-          case AbstractMotorMsg::MessageType::motor_amperage:
-          {
-            MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.amp_1 = motor_amp->motor_amp_1_;
-            lift_pub_msg_->arm.amp_2 = motor_amp->motor_amp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_temperature:
-          {
-            MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.motor_temp_1 = motor_temp->motor_temp_1_;
-            lift_pub_msg_->arm.motor_temp_2 = motor_temp->motor_temp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::encoder_position:
-          {
-            MotorEncPosMsg *motor_enc_pos =
-              dynamic_cast<MotorEncPosMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
-            lift_pub_msg_->arm.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_power:
-          {
-            // TODO we've seen this coming out negative... what's up with that?
-            // TODO what are the units?  What does this number mean?
-            // 25 for power 1 and 0 for power 2 on the arm,
-            // -22 and -1 for power on the arm?
-            MotorPowerMsg *motor_power =
-              dynamic_cast<MotorPowerMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.motor_power_1 = motor_power->motor_power_1_;
-            lift_pub_msg_->arm.motor_power_2 = motor_power->motor_power_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::encoder_velocity:
-          {
-            MotorEncVelMsg *motor_enc_vel =
-              dynamic_cast<MotorEncVelMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
-            lift_pub_msg_->arm.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::board_temperature:
-          {
-            MotorBoardTempMsg *motor_board_temp =
-              dynamic_cast<MotorBoardTempMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.board_temp_1 = motor_board_temp->board_temp_1_;
-            lift_pub_msg_->arm.board_temp_2 = motor_board_temp->board_temp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::voltage:
-          {
-            MotorVoltageMsg *motor_voltage =
-              dynamic_cast<MotorVoltageMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.volt_main = motor_voltage->bat_voltage_;
-            lift_pub_msg_->arm.volt_12v = motor_voltage->drv_voltage_;
-            lift_pub_msg_->arm.volt_5v = motor_voltage->reg_5_voltage_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_mode:
-          {
-            num_lift_pings_recvd_++;
-            MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.motor_control_mode_1 =
-              static_cast<std::underlying_type
-                          <MotorModeMsg::MotorControlMode>::type>
-              (motor_mode->mode_channel_1_);
-            lift_pub_msg_->arm.motor_control_mode_2 =
-              static_cast<std::underlying_type
-                          <MotorModeMsg::MotorControlMode>::type>
-              (motor_mode->mode_channel_2_);
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_flags:
-          {
-            MotorFlagsMsg *motor_flags =
-              dynamic_cast<MotorFlagsMsg*>(arm_msg.get());
-            lift_pub_msg_->arm.overheat = motor_flags->overheat_;
-            lift_pub_msg_->arm.overvoltage = motor_flags->overvoltage_;
-            lift_pub_msg_->arm.undervoltage = motor_flags->undervoltage_;
-            lift_pub_msg_->arm.e_short = motor_flags->short_;
-            lift_pub_msg_->arm.estop = motor_flags->ESTOP_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::command_accepted:
-          {
-            lift_pub_msg_->arm.last_cmd_ack = true;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::command_rejected:
-          {
-            lift_pub_msg_->arm.last_cmd_ack = false;
-          }
-          break;
+        abstractMotorToROS(arm_msg.get(), &lift_pub_msg_->arm);
+
+        if (arm_msg->getType() == AbstractMotorMsg::MessageType::motor_mode) {
+          num_lift_pings_recvd_++;
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
@@ -272,101 +181,10 @@ private:
       }
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       if (hand_msg) {
-        switch(hand_msg->getType()) {
-          case AbstractMotorMsg::MessageType::motor_amperage:
-          {
-            MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.amp_1 = motor_amp->motor_amp_1_;
-            lift_pub_msg_->hand.amp_2 = motor_amp->motor_amp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_temperature:
-          {
-            MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.motor_temp_1 = motor_temp->motor_temp_1_;
-            lift_pub_msg_->hand.motor_temp_2 = motor_temp->motor_temp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::encoder_position:
-          {
-            // TODO we've seen this coming out negative... what's up with that?
-            MotorEncPosMsg *motor_enc_pos =
-              dynamic_cast<MotorEncPosMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.encoder_pos_1 = motor_enc_pos->encoder_pos_1_;
-            lift_pub_msg_->hand.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_power:
-          {
-            // TODO what are the units?  What does this number mean?
-            // 25 for power 1 and 0 for power 2 on the arm,
-            // -22 and -1 for power on the arm?
-            MotorPowerMsg *motor_power =
-              dynamic_cast<MotorPowerMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.motor_power_1 = motor_power->motor_power_1_;
-            lift_pub_msg_->hand.motor_power_2 = motor_power->motor_power_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::encoder_velocity:
-          {
-            MotorEncVelMsg *motor_enc_vel =
-              dynamic_cast<MotorEncVelMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.encoder_vel_1 = motor_enc_vel->encoder_velocity_1_;
-            lift_pub_msg_->hand.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::board_temperature:
-          {
-            MotorBoardTempMsg *motor_board_temp =
-              dynamic_cast<MotorBoardTempMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.board_temp_1 = motor_board_temp->board_temp_1_;
-            lift_pub_msg_->hand.board_temp_2 = motor_board_temp->board_temp_2_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::voltage:
-          {
-            MotorVoltageMsg *motor_voltage =
-              dynamic_cast<MotorVoltageMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.volt_main = motor_voltage->bat_voltage_;
-            lift_pub_msg_->hand.volt_12v = motor_voltage->drv_voltage_;
-            lift_pub_msg_->hand.volt_5v = motor_voltage->reg_5_voltage_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_mode:
-          {
-            num_hand_pings_recvd_++;
-            MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.motor_control_mode_1 =
-              static_cast<std::underlying_type
-                          <MotorModeMsg::MotorControlMode>::type>
-              (motor_mode->mode_channel_1_);
-            lift_pub_msg_->hand.motor_control_mode_2 =
-              static_cast<std::underlying_type
-                          <MotorModeMsg::MotorControlMode>::type>
-              (motor_mode->mode_channel_2_);
-          }
-          break;
-          case AbstractMotorMsg::MessageType::motor_flags:
-          {
-            MotorFlagsMsg *motor_flags =
-              dynamic_cast<MotorFlagsMsg*>(hand_msg.get());
-            lift_pub_msg_->hand.overheat = motor_flags->overheat_;
-            lift_pub_msg_->hand.overvoltage = motor_flags->overvoltage_;
-            lift_pub_msg_->hand.undervoltage = motor_flags->undervoltage_;
-            lift_pub_msg_->hand.e_short = motor_flags->short_;
-            lift_pub_msg_->hand.estop = motor_flags->ESTOP_;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::command_accepted:
-          {
-            lift_pub_msg_->hand.last_cmd_ack = true;
-          }
-          break;
-          case AbstractMotorMsg::MessageType::command_rejected:
-          {
-            lift_pub_msg_->hand.last_cmd_ack = false;
-          }
-          break;
+        abstractMotorToROS(hand_msg.get(), &lift_pub_msg_->hand);
+
+        if (hand_msg->getType() == AbstractMotorMsg::MessageType::motor_mode) {
+          num_hand_pings_recvd_++;
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
