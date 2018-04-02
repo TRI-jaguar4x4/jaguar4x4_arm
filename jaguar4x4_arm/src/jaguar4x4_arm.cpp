@@ -144,7 +144,7 @@ private:
                     std::unique_ptr<ArmReceive> lift_recv)
   {
     std::future_status status;
-    std::unique_ptr<AbstractArmMsg> arm_msg;
+    std::unique_ptr<AbstractMotorMsg> arm_msg;
 
     do {
       try {
@@ -157,21 +157,21 @@ private:
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       if (arm_msg) {
         switch(arm_msg->getType()) {
-          case AbstractArmMsg::MessageType::motor_amperage:
+          case AbstractMotorMsg::MessageType::motor_amperage:
           {
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(arm_msg.get());
             lift_pub_msg_->arm.amp_1 = motor_amp->motor_amp_1_;
             lift_pub_msg_->arm.amp_2 = motor_amp->motor_amp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_temperature:
+          case AbstractMotorMsg::MessageType::motor_temperature:
           {
             MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(arm_msg.get());
             lift_pub_msg_->arm.motor_temp_1 = motor_temp->motor_temp_1_;
             lift_pub_msg_->arm.motor_temp_2 = motor_temp->motor_temp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::encoder_position:
+          case AbstractMotorMsg::MessageType::encoder_position:
           {
             MotorEncPosMsg *motor_enc_pos =
               dynamic_cast<MotorEncPosMsg*>(arm_msg.get());
@@ -179,7 +179,7 @@ private:
             lift_pub_msg_->arm.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_power:
+          case AbstractMotorMsg::MessageType::motor_power:
           {
             // TODO we've seen this coming out negative... what's up with that?
             // TODO what are the units?  What does this number mean?
@@ -191,7 +191,7 @@ private:
             lift_pub_msg_->arm.motor_power_2 = motor_power->motor_power_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::encoder_velocity:
+          case AbstractMotorMsg::MessageType::encoder_velocity:
           {
             MotorEncVelMsg *motor_enc_vel =
               dynamic_cast<MotorEncVelMsg*>(arm_msg.get());
@@ -199,7 +199,7 @@ private:
             lift_pub_msg_->arm.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::board_temperature:
+          case AbstractMotorMsg::MessageType::board_temperature:
           {
             MotorBoardTempMsg *motor_board_temp =
               dynamic_cast<MotorBoardTempMsg*>(arm_msg.get());
@@ -207,7 +207,7 @@ private:
             lift_pub_msg_->arm.board_temp_2 = motor_board_temp->board_temp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::voltage:
+          case AbstractMotorMsg::MessageType::voltage:
           {
             MotorVoltageMsg *motor_voltage =
               dynamic_cast<MotorVoltageMsg*>(arm_msg.get());
@@ -216,7 +216,7 @@ private:
             lift_pub_msg_->arm.volt_5v = motor_voltage->reg_5_voltage_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_mode:
+          case AbstractMotorMsg::MessageType::motor_mode:
           {
             num_lift_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(arm_msg.get());
@@ -230,7 +230,7 @@ private:
               (motor_mode->mode_channel_2_);
           }
           break;
-          case AbstractArmMsg::MessageType::motor_flags:
+          case AbstractMotorMsg::MessageType::motor_flags:
           {
             MotorFlagsMsg *motor_flags =
               dynamic_cast<MotorFlagsMsg*>(arm_msg.get());
@@ -241,12 +241,12 @@ private:
             lift_pub_msg_->arm.estop = motor_flags->ESTOP_;
           }
           break;
-          case AbstractArmMsg::MessageType::command_accepted:
+          case AbstractMotorMsg::MessageType::command_accepted:
           {
             lift_pub_msg_->arm.last_cmd_ack = true;
           }
           break;
-          case AbstractArmMsg::MessageType::command_rejected:
+          case AbstractMotorMsg::MessageType::command_rejected:
           {
             lift_pub_msg_->arm.last_cmd_ack = false;
           }
@@ -261,7 +261,7 @@ private:
                     std::unique_ptr<ArmReceive> hand_recv)
   {
     std::future_status status;
-    std::unique_ptr<AbstractArmMsg> hand_msg;
+    std::unique_ptr<AbstractMotorMsg> hand_msg;
 
     do {
       try {
@@ -273,21 +273,21 @@ private:
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       if (hand_msg) {
         switch(hand_msg->getType()) {
-          case AbstractArmMsg::MessageType::motor_amperage:
+          case AbstractMotorMsg::MessageType::motor_amperage:
           {
             MotorAmpMsg *motor_amp = dynamic_cast<MotorAmpMsg*>(hand_msg.get());
             lift_pub_msg_->hand.amp_1 = motor_amp->motor_amp_1_;
             lift_pub_msg_->hand.amp_2 = motor_amp->motor_amp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_temperature:
+          case AbstractMotorMsg::MessageType::motor_temperature:
           {
             MotorTempMsg *motor_temp = dynamic_cast<MotorTempMsg*>(hand_msg.get());
             lift_pub_msg_->hand.motor_temp_1 = motor_temp->motor_temp_1_;
             lift_pub_msg_->hand.motor_temp_2 = motor_temp->motor_temp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::encoder_position:
+          case AbstractMotorMsg::MessageType::encoder_position:
           {
             // TODO we've seen this coming out negative... what's up with that?
             MotorEncPosMsg *motor_enc_pos =
@@ -296,7 +296,7 @@ private:
             lift_pub_msg_->hand.encoder_pos_2 = motor_enc_pos->encoder_pos_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_power:
+          case AbstractMotorMsg::MessageType::motor_power:
           {
             // TODO what are the units?  What does this number mean?
             // 25 for power 1 and 0 for power 2 on the arm,
@@ -307,7 +307,7 @@ private:
             lift_pub_msg_->hand.motor_power_2 = motor_power->motor_power_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::encoder_velocity:
+          case AbstractMotorMsg::MessageType::encoder_velocity:
           {
             MotorEncVelMsg *motor_enc_vel =
               dynamic_cast<MotorEncVelMsg*>(hand_msg.get());
@@ -315,7 +315,7 @@ private:
             lift_pub_msg_->hand.encoder_vel_2 = motor_enc_vel->encoder_velocity_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::board_temperature:
+          case AbstractMotorMsg::MessageType::board_temperature:
           {
             MotorBoardTempMsg *motor_board_temp =
               dynamic_cast<MotorBoardTempMsg*>(hand_msg.get());
@@ -323,7 +323,7 @@ private:
             lift_pub_msg_->hand.board_temp_2 = motor_board_temp->board_temp_2_;
           }
           break;
-          case AbstractArmMsg::MessageType::voltage:
+          case AbstractMotorMsg::MessageType::voltage:
           {
             MotorVoltageMsg *motor_voltage =
               dynamic_cast<MotorVoltageMsg*>(hand_msg.get());
@@ -332,7 +332,7 @@ private:
             lift_pub_msg_->hand.volt_5v = motor_voltage->reg_5_voltage_;
           }
           break;
-          case AbstractArmMsg::MessageType::motor_mode:
+          case AbstractMotorMsg::MessageType::motor_mode:
           {
             num_hand_pings_recvd_++;
             MotorModeMsg *motor_mode = dynamic_cast<MotorModeMsg*>(hand_msg.get());
@@ -346,7 +346,7 @@ private:
               (motor_mode->mode_channel_2_);
           }
           break;
-          case AbstractArmMsg::MessageType::motor_flags:
+          case AbstractMotorMsg::MessageType::motor_flags:
           {
             MotorFlagsMsg *motor_flags =
               dynamic_cast<MotorFlagsMsg*>(hand_msg.get());
@@ -357,12 +357,12 @@ private:
             lift_pub_msg_->hand.estop = motor_flags->ESTOP_;
           }
           break;
-          case AbstractArmMsg::MessageType::command_accepted:
+          case AbstractMotorMsg::MessageType::command_accepted:
           {
             lift_pub_msg_->hand.last_cmd_ack = true;
           }
           break;
-          case AbstractArmMsg::MessageType::command_rejected:
+          case AbstractMotorMsg::MessageType::command_rejected:
           {
             lift_pub_msg_->hand.last_cmd_ack = false;
           }
