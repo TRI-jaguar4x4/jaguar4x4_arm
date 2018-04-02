@@ -2,7 +2,8 @@
 #include <mutex>
 #include <string>
 
-#include "jaguar4x4_arm/AbstractCommunication.h"
+#include <jaguar4x4_comms/AbstractCommunication.h>
+
 #include "jaguar4x4_arm/HandCommand.h"
 
 HandCommand::HandCommand(AbstractCommunication* comm)

@@ -6,14 +6,15 @@
 #include <string>
 #include <thread>
 
+#include <rclcpp/rclcpp.hpp>
+
+#include <jaguar4x4_comms/Communication.h>
+
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "jaguar4x4_arm_msgs/msg/lift.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
 #include "jaguar4x4_arm/ArmReceive.h"
 #include "jaguar4x4_arm/HandCommand.h"
-
-#include "jaguar4x4_arm/Communication.h"
-#include "rclcpp/rclcpp.hpp"
 
 using namespace std::chrono_literals;
 

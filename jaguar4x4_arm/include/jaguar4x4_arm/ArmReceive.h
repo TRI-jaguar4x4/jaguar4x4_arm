@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "AbstractCommunication.h"
+#include <jaguar4x4_comms/AbstractCommunication.h>
 
 class AbstractArmMsg {
  public:

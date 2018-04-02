@@ -4,7 +4,7 @@
 #include <mutex>
 #include <string>
 
-#include "AbstractCommunication.h"
+#include <jaguar4x4_comms/AbstractCommunication.h>
 
 class HandCommand {
  public:

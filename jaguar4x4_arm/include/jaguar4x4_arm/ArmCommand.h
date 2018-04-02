@@ -3,7 +3,7 @@
 
 #include <mutex>
 
-#include "AbstractCommunication.h"
+#include <jaguar4x4_comms/AbstractCommunication.h>
 
 class ArmCommand {
  public:
