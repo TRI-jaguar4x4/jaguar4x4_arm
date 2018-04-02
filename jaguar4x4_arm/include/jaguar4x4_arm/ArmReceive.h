@@ -5,7 +5,6 @@
 #include <iostream>
 #include <memory>
 #include <utility>
-#include <vector>
 
 #include <jaguar4x4_comms/AbstractCommunication.h>
 
@@ -194,7 +193,7 @@ class MotorCmdRejectedMsg : public AbstractArmMsg {
 class ArmReceive {
  public:
   ArmReceive(std::shared_ptr<AbstractCommunication> comm);
-  std::vector<std::unique_ptr<AbstractArmMsg>> getAndParseMessage();
+  std::unique_ptr<AbstractArmMsg> getAndParseMessage();
 
 private:
   std::shared_ptr<AbstractCommunication> comm_;
