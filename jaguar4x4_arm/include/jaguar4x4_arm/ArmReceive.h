@@ -6,9 +6,9 @@
 #include <jaguar4x4_comms/AbstractCommunication.h>
 #include <jaguar4x4_comms/MotorParse.h>
 
-class ArmReceive {
+class ArmReceive final {
  public:
-  ArmReceive(std::shared_ptr<AbstractCommunication> comm);
+  explicit ArmReceive(std::shared_ptr<AbstractCommunication> comm);
   std::unique_ptr<AbstractMotorMsg> getAndParseMessage();
 
 private:

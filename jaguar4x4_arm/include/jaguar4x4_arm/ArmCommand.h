@@ -7,14 +7,14 @@
 
 #include <jaguar4x4_comms/AbstractCommunication.h>
 
-class ArmCommand {
+class ArmCommand final {
  public:
   enum class Joint {
     lower_arm,
     upper_arm,
   };
 
-  ArmCommand(std::shared_ptr<AbstractCommunication> comm);
+  explicit ArmCommand(std::shared_ptr<AbstractCommunication> comm);
   void moveArmUp(ArmCommand::Joint arm, int value);
   void moveArmDown(ArmCommand::Joint arm, int value);
   void configure(uint32_t time_interval_ms);

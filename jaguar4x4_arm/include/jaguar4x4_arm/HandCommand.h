@@ -7,14 +7,14 @@
 
 #include <jaguar4x4_comms/AbstractCommunication.h>
 
-class HandCommand {
+class HandCommand final {
  public:
   enum class Joint {
     rotator,
     gripper,
   };
 
-  HandCommand(std::shared_ptr<AbstractCommunication> comm);
+  explicit HandCommand(std::shared_ptr<AbstractCommunication> comm);
   void rotateHandLeft(int value);
   void rotateHandRight(int value);
   void gripperOpen(int value);
