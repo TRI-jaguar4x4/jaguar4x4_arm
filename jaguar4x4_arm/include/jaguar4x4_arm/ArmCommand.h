@@ -7,6 +7,9 @@
 
 #include <jaguar4x4_comms/AbstractCommunication.h>
 
+// The motors used in the Jaguar4x4 arm are the Roboteq SDC2130:
+// https://www.roboteq.com/index.php/docman/motor-controllers-documents-and-files/documentation/user-manual/272-roboteq-controllers-user-manual-v17/file
+
 enum class ArmJoint {
   lower_arm = 1,
   upper_arm = 2,
