@@ -22,9 +22,7 @@ class Jaguar4x4Arm : public rclcpp::Node
 {
 public:
   Jaguar4x4Arm(const std::string& ip, uint16_t arm_port, uint16_t hand_port)
-    : Node("jaguar4x4Arm"), arm_recv_thread_(), hand_recv_thread_(),
-      num_pings_sent_(0), num_lift_pings_recvd_(0), num_hand_pings_recvd_(0),
-      accepting_commands_(false)
+    : Node("jaguar4x4Arm")
   {
     auto board_1_comm = std::make_shared<Communication>();
     board_1_comm->connect(ip, arm_port);
@@ -49,16 +47,13 @@ public:
                                 this, std::placeholders::_1),
         z_position_qos_profile);
 
+    future_ = exit_signal_.get_future();
+
     lift_pub_msg_ = std::make_shared<jaguar4x4_arm_msgs::msg::Lift>();
     lift_pub_ = this->create_publisher<jaguar4x4_arm_msgs::msg::Lift>("liftInfo");
+    lift_pub_thread_ = std::thread(&Jaguar4x4Arm::liftPubThread, this, future_);
 
-    ping_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(Jaguar4x4Arm::kPingTimerIntervalMS),
-      std::bind(&Jaguar4x4Arm::pingTimerCallback, this));
-
-    pub_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(Jaguar4x4Arm::kPubTimerIntervalMS),
-      std::bind(&Jaguar4x4Arm::pubTimerCallback, this));
+    ping_thread_ = std::thread(&Jaguar4x4Arm::pingThread, this, future_);
 
     lift_cmd_->configure(kPubTimerIntervalMS);
     lift_cmd_->resume();
@@ -66,12 +61,10 @@ public:
     hand_cmd_->configure(kPubTimerIntervalMS);
     hand_cmd_->resume();
 
-    future_ = exit_signal_.get_future();
-
     arm_recv_thread_ = std::thread(&Jaguar4x4Arm::armRecvThread, this,
-                               future_, std::move(lift_rcv_));
+                                   future_);
     hand_recv_thread_ = std::thread(&Jaguar4x4Arm::handRecvThread, this,
-                               future_, std::move(hand_rcv_));
+                                    future_);
   }
 
   ~Jaguar4x4Arm()
@@ -79,20 +72,11 @@ public:
     exit_signal_.set_value();
     arm_recv_thread_.join();
     hand_recv_thread_.join();
+    ping_thread_.join();
+    lift_pub_thread_.join();
   }
 
 private:
-  // TODO:  figure out why static isn't working (linker unhappiness mystery)
-  const uint32_t kPubTimerIntervalMS = 100;
-
-  // TODO: find out how long it takes the robot to respond.
-  // Bumping kPingRecvPercentage_ down to .6 from .8 seems to make things work
-  const uint32_t kPingTimerIntervalMS = 100;
-  const uint32_t kWatchdogIntervalMS = 500;
-  static constexpr double   kPingRecvPercentage = 0.6;
-  const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS/kPingTimerIntervalMS;
-  const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval*kPingRecvPercentage;
-
   // clalancette: To test this by hand, the following command-line can
   // be used:
   // ros2 topic pub /z_position geometry_msgs/PoseStamped "{header:{stamp:{sec: 4, nanosec: 14}, frame_id: 'frame'}, pose:{position:{x: 1, y: 2, z: 3}, orientation:{x: 4, y: 5, z: 6, w: 7}}}"
@@ -115,13 +99,8 @@ private:
     // down directly and that's not right
 
     // move arm up/down
-    if (msg->pose.position.z > 0) {
-      lift_cmd_->moveArmDown(ArmCommand::Joint::lower_arm, msg->pose.position.z);
-      lift_cmd_->moveArmDown(ArmCommand::Joint::upper_arm, msg->pose.position.z);
-    } else if (msg->pose.position.z < 0) {
-      lift_cmd_->moveArmUp(ArmCommand::Joint::lower_arm, msg->pose.position.z);
-      lift_cmd_->moveArmUp(ArmCommand::Joint::upper_arm, msg->pose.position.z);
-    }
+    lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, msg->pose.position.z);
+    lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, msg->pose.position.z);
 
     // rotate wrist around x
     if (msg->pose.position.x > 0) {
@@ -140,15 +119,14 @@ private:
     }
   }
 
-  void armRecvThread(std::shared_future<void> local_future,
-                    std::unique_ptr<ArmReceive> lift_recv)
+  void armRecvThread(std::shared_future<void> local_future)
   {
     std::future_status status;
     std::unique_ptr<AbstractMotorMsg> arm_msg;
 
     do {
       try {
-        arm_msg = lift_recv->getAndParseMessage();
+        arm_msg = lift_rcv_->getAndParseMessage();
       }
       catch (...) {
         std::cerr << "threw\n";
@@ -166,15 +144,14 @@ private:
     } while (status == std::future_status::timeout);
   }
 
-  void handRecvThread(std::shared_future<void> local_future,
-                    std::unique_ptr<ArmReceive> hand_recv)
+  void handRecvThread(std::shared_future<void> local_future)
   {
     std::future_status status;
     std::unique_ptr<AbstractMotorMsg> hand_msg;
 
     do {
       try {
-        hand_msg = hand_recv->getAndParseMessage();
+        hand_msg = hand_rcv_->getAndParseMessage();
       }
       catch (...) {
         std::cerr << "threw\n";
@@ -191,54 +168,83 @@ private:
     } while (status == std::future_status::timeout);
   }
 
-  void pubTimerCallback()
+  void liftPubThread(std::shared_future<void> local_future)
   {
-    // to set timestamp
-    rcutils_time_point_value_t now;
-    if (rcutils_system_time_now(&now) != RCUTILS_RET_OK) {
-      std::cerr << "unable to access time\n";
-      return;
-    }
+    std::future_status status;
 
-    auto local_pub_msg = std::make_unique<jaguar4x4_arm_msgs::msg::Lift>();
+    do {
+      // to set timestamp
+      rcutils_time_point_value_t now;
+      if (rcutils_system_time_now(&now) == RCUTILS_RET_OK) {
+        auto local_pub_msg = std::make_unique<jaguar4x4_arm_msgs::msg::Lift>();
 
-    local_pub_msg->header.stamp.sec = RCL_NS_TO_S(now);
-    local_pub_msg->header.stamp.nanosec =
-      now - RCL_S_TO_NS(local_pub_msg->header.stamp.sec);
+        local_pub_msg->header.stamp.sec = RCL_NS_TO_S(now);
+        local_pub_msg->header.stamp.nanosec =
+          now - RCL_S_TO_NS(local_pub_msg->header.stamp.sec);
 
-    {
-      std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
-      // Both local_pub_msg->motor* and lift_pub_msg_->motor* are of type
-      // jaguar4x4_comms_msgs::msg::MotorBoard, which is a class generated by the
-      // ROS2 generator.  Those classes do not have copy constructors or =operator
-      // implemented, so we copy by hand here.
-      copyMotorBoardMessage(&(local_pub_msg->arm), &(lift_pub_msg_->arm));
-      copyMotorBoardMessage(&(local_pub_msg->hand), &(lift_pub_msg_->hand));
-    }
+        {
+          std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
+          // Both local_pub_msg->motor* and lift_pub_msg_->motor* are of type
+          // jaguar4x4_comms_msgs::msg::MotorBoard, which is a class generated by the
+          // ROS2 generator.  Those classes do not have copy constructors or =operator
+          // implemented, so we copy by hand here.
+          copyMotorBoardMessage(&(local_pub_msg->arm), &(lift_pub_msg_->arm));
+          copyMotorBoardMessage(&(local_pub_msg->hand), &(lift_pub_msg_->hand));
+        }
 
-    lift_pub_->publish(local_pub_msg);
+        lift_pub_->publish(local_pub_msg);
+      } else {
+        std::cerr << "unable to access time\n";
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(kPubTimerIntervalMS));
+
+      status = local_future.wait_for(std::chrono::seconds(0));
+    } while (status == std::future_status::timeout);
   }
 
-  void pingTimerCallback()
+  void pingThread(std::shared_future<void> local_future)
   {
-    lift_cmd_->ping();
-    hand_cmd_->ping();
-    num_pings_sent_++;
+    std::future_status status;
+    uint32_t num_pings_sent{0};
 
-    if (num_pings_sent_ < kPingsPerWatchdogInterval) {
-      return;
-    }
+    do {
+      lift_cmd_->ping();
+      hand_cmd_->ping();
+      num_pings_sent++;
 
-    if (num_lift_pings_recvd_ < kMinPingsExpected
-        || num_hand_pings_recvd_ < kMinPingsExpected) {
-      accepting_commands_ = false;
-    } else {
-      accepting_commands_ = true;
-    }
-    num_lift_pings_recvd_ = 0;
-    num_hand_pings_recvd_ = 0;
-    num_pings_sent_ = 0;
+      if (num_pings_sent >= kPingsPerWatchdogInterval) {
+
+        if (num_lift_pings_recvd_ < kMinPingsExpected
+            || num_hand_pings_recvd_ < kMinPingsExpected) {
+          std::cerr << "Stopped accepting commands" << std::endl;
+          accepting_commands_ = false;
+        } else {
+          if (!accepting_commands_) {
+            std::cerr << "accepting commands" << std::endl;
+          }
+          accepting_commands_ = true;
+        }
+        num_lift_pings_recvd_ = 0;
+        num_hand_pings_recvd_ = 0;
+        num_pings_sent = 0;
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(kPingTimerIntervalMS));
+
+      status = local_future.wait_for(std::chrono::seconds(0));
+    } while (status == std::future_status::timeout);
   }
+
+  // Tunable parameters
+  const uint32_t kPubTimerIntervalMS = 100;
+  const uint32_t kPingTimerIntervalMS = 20;
+  const uint32_t kWatchdogIntervalMS = 500;
+  static constexpr double kPingRecvPercentage = 0.6;
+
+  // Constants calculated based on the tunable parameters above
+  const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS / kPingTimerIntervalMS;
+  const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval * kPingRecvPercentage;
 
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
   std::unique_ptr<ArmCommand>                                      lift_cmd_;
@@ -246,16 +252,15 @@ private:
   std::unique_ptr<HandCommand>                                     hand_cmd_;
   std::unique_ptr<ArmReceive>                                      hand_rcv_;
   int64_t                                                          last_stamp_ = 0;
-  rclcpp::TimerBase::SharedPtr                                     ping_timer_;
-  rclcpp::TimerBase::SharedPtr                                     pub_timer_;
+  std::thread                                                      ping_thread_;
+  std::thread                                                      lift_pub_thread_;
   std::thread                                                      arm_recv_thread_;
   std::thread                                                      hand_recv_thread_;
   std::promise<void>                                               exit_signal_;
   std::shared_future<void>                                         future_;
-  uint32_t                                                         num_pings_sent_;
-  std::atomic<uint32_t>                                            num_lift_pings_recvd_;
-  std::atomic<uint32_t>                                            num_hand_pings_recvd_;
-  std::atomic<bool>                                                accepting_commands_;
+  std::atomic<uint32_t>                                            num_lift_pings_recvd_{0};
+  std::atomic<uint32_t>                                            num_hand_pings_recvd_{0};
+  std::atomic<bool>                                                accepting_commands_{false};
   std::mutex                                                       sensor_frame_mutex_;
   rclcpp::Publisher<jaguar4x4_arm_msgs::msg::Lift>::SharedPtr      lift_pub_;
   std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift>                   lift_pub_msg_;

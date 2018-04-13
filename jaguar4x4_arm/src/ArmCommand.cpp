@@ -12,14 +12,33 @@ ArmCommand::ArmCommand(std::shared_ptr<AbstractCommunication> comm)
 {
 }
 
-std::string ArmCommand::buildArmCommand(ArmCommand::Joint arm, int value)
+enum class ArmEncoderMotion
 {
-  std::string arm_command("!PR ");
-  if (arm == Joint::lower_arm) {
-    arm_command.append("1");
-  } else {
-    arm_command.append("2");
+  RELATIVE,
+  ABSOLUTE,
+};
+
+static std::string buildArmCommand(ArmEncoderMotion motion, ArmJoint arm, int value)
+{
+  std::string arm_command("!");
+  switch (motion) {
+  case ArmEncoderMotion::RELATIVE:
+    arm_command.append("PR ");
+    break;
+  case ArmEncoderMotion::ABSOLUTE:
+    arm_command.append("P ");
+    break;
   }
+
+  switch (arm) {
+  case ArmJoint::lower_arm:
+    arm_command.append("1");
+    break;
+  case ArmJoint::upper_arm:
+    arm_command.append("2");
+    break;
+  }
+
   arm_command.append(" ");
   arm_command.append(std::to_string(value));
   arm_command.append("\r");
@@ -27,21 +46,21 @@ std::string ArmCommand::buildArmCommand(ArmCommand::Joint arm, int value)
   return arm_command;
 }
 
-void ArmCommand::moveArmUp(ArmCommand::Joint arm, int value)
+void ArmCommand::moveArmToRelativeEncoderPos(ArmJoint arm, int value)
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
-  comm_->sendCommand(buildArmCommand(arm, value));
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(buildArmCommand(ArmEncoderMotion::RELATIVE, arm, value));
 }
 
-void ArmCommand::moveArmDown(ArmCommand::Joint arm, int value)
+void ArmCommand::moveArmToAbsoluteEncoderPos(ArmJoint arm, int value)
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
-  comm_->sendCommand(buildArmCommand(arm, value));
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(buildArmCommand(ArmEncoderMotion::ABSOLUTE, arm, value));
 }
 
 void ArmCommand::configure(uint32_t time_interval_ms)
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
   // output the following messages every time_interval_ms
   std::string cmd("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# ");
   cmd += std::to_string(time_interval_ms);
@@ -51,18 +70,18 @@ void ArmCommand::configure(uint32_t time_interval_ms)
 
 void ArmCommand::resume()
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
   comm_->sendCommand("!MG\r");
 }
 
 void ArmCommand::eStop()
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
   comm_->sendCommand("!EX\r");
 }
 
 void ArmCommand::ping()
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
   comm_->sendCommand("~MMOD\r");
 }
