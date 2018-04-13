@@ -26,17 +26,17 @@ public:
   Jaguar4x4Arm(const std::string& ip, uint16_t arm_port, uint16_t hand_port)
     : Node("jaguar4x4Arm")
   {
-    auto board_1_comm = std::make_shared<Communication>();
-    board_1_comm->connect(ip, arm_port);
+    auto arm_board_comm = std::make_shared<Communication>();
+    arm_board_comm->connect(ip, arm_port);
 
-    auto board_2_comm = std::make_shared<Communication>();
-    board_2_comm->connect(ip, hand_port);
+    auto hand_board_comm = std::make_shared<Communication>();
+    hand_board_comm->connect(ip, hand_port);
 
-    lift_cmd_ = std::make_unique<ArmCommand>(board_1_comm);
-    lift_rcv_ = std::make_unique<ArmReceive>(board_1_comm);
+    lift_cmd_ = std::make_unique<ArmCommand>(arm_board_comm);
+    lift_rcv_ = std::make_unique<ArmReceive>(arm_board_comm);
 
-    hand_cmd_ = std::make_unique<HandCommand>(board_2_comm);
-    hand_rcv_ = std::make_unique<ArmReceive>(board_2_comm);
+    hand_cmd_ = std::make_unique<HandCommand>(hand_board_comm);
+    hand_rcv_ = std::make_unique<ArmReceive>(hand_board_comm);
 
     rmw_qos_profile_t z_position_qos_profile = rmw_qos_profile_sensor_data;
     z_position_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -58,6 +58,8 @@ public:
     ping_thread_ = std::thread(&Jaguar4x4Arm::pingThread, this, future_);
 
     lift_cmd_->configure(kPubTimerIntervalMS);
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+    lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
     lift_cmd_->eStop();
 
     hand_cmd_->configure(kPubTimerIntervalMS);
@@ -149,8 +151,8 @@ private:
           // drives to the current position, not whatever was in the command
           // buffer.
           MotorEncPosMsg *motor_enc_pos = dynamic_cast<MotorEncPosMsg*>(arm_msg.get());
-          current_arm_enc_pos_1_ = motor_enc_pos->encoder_pos_1_;
-          current_arm_enc_pos_2_ = motor_enc_pos->encoder_pos_2_;
+          current_arm_enc_pos_lower_ = motor_enc_pos->encoder_pos_1_;
+          current_arm_enc_pos_upper_ = motor_enc_pos->encoder_pos_2_;
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
@@ -180,8 +182,7 @@ private:
           // drives to the current position, not whatever was in the command
           // buffer.
           MotorEncPosMsg *motor_enc_pos = dynamic_cast<MotorEncPosMsg*>(hand_msg.get());
-          current_hand_enc_pos_1_ = motor_enc_pos->encoder_pos_1_;
-          current_hand_enc_pos_2_ = motor_enc_pos->encoder_pos_2_;
+          current_hand_enc_pos_wrist_ = motor_enc_pos->encoder_pos_1_;
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
@@ -225,17 +226,16 @@ private:
 
   void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
   {
-    // Button 7 is the Right Trigger (RT) on the Logitech joystick, which we use
-    // as "eStop the robot".  Button 6 is the Left Trigger (LT) on the joystick,
-    // which we use as "resume the robot".  We start out with the robot in eStop,
-    // so you always must resume it to start using the robot.
+    // Button 11 is the Right Analog Stick press on the Logitech joystick, which
+    // we use as "eStop the robot".  Button 10 is the Left Analog Stick press on
+    // the joystick, which we use as "resume the robot".  We start out with the
+    // robot in eStop, so you always must resume it to start using the robot.
 
-    if (!msg->buttons[6] && !msg->buttons[7]) {
+    if (!msg->buttons[10] && !msg->buttons[11]) {
       return;
     }
 
-    if (msg->buttons[7]) {
-      std::cerr << "ESTOP" << std::endl;
+    if (msg->buttons[11]) {
       // If we see eStop, set our eStopped_ atomic variable to true.  This will
       // ensure that the pingThread does not start accepting commands while we
       // are eStopped.
@@ -246,13 +246,15 @@ private:
       // robot won't continue moving at its last commanded power when we resume.
       lift_cmd_->eStop();
       hand_cmd_->eStop();
+
+      std::cerr << "ESTOP" << std::endl;
     } else {
       // Resume the arm.  Since the motors are in position control, we drive it
       // to whatever the current arm position is so that it doesn't continue to
       // move.  We also set eStopped to false, and then rely on the pingThread
       // to set accepting_commands to true as appropriate.
-      lift_cmd_->moveArmToAbsoluteEncoderPos(ArmJoint::lower_arm, current_arm_enc_pos_1_);
-      lift_cmd_->moveArmToAbsoluteEncoderPos(ArmJoint::upper_arm, current_arm_enc_pos_2_);
+      lift_cmd_->moveArmToAbsoluteEncoderPos(ArmJoint::lower_arm, current_arm_enc_pos_lower_);
+      lift_cmd_->moveArmToAbsoluteEncoderPos(ArmJoint::upper_arm, current_arm_enc_pos_upper_);
 
       // TODO: Drive the hand back to the current position to stop motion.
 
@@ -327,10 +329,9 @@ private:
   std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift>                   lift_pub_msg_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr           joy_sub_;
   std::atomic<bool>                                                eStopped_{true};
-  int64_t                                                          current_arm_enc_pos_1_;
-  int64_t                                                          current_arm_enc_pos_2_;
-  int64_t                                                          current_hand_enc_pos_1_;
-  int64_t                                                          current_hand_enc_pos_2_;
+  int64_t                                                          current_arm_enc_pos_lower_;
+  int64_t                                                          current_arm_enc_pos_upper_;
+  int64_t                                                          current_hand_enc_pos_wrist_;
 };
 
 int main(int argc, char * argv[])

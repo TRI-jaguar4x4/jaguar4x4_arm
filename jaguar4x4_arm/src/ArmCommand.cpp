@@ -1,4 +1,6 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
+
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -30,15 +32,7 @@ static std::string buildArmCommand(ArmEncoderMotion motion, ArmJoint arm, int va
     break;
   }
 
-  switch (arm) {
-  case ArmJoint::lower_arm:
-    arm_command.append("1");
-    break;
-  case ArmJoint::upper_arm:
-    arm_command.append("2");
-    break;
-  }
-
+  arm_command.append(std::to_string(static_cast<int>(arm)));
   arm_command.append(" ");
   arm_command.append(std::to_string(value));
   arm_command.append("\r");
@@ -84,4 +78,18 @@ void ArmCommand::ping()
 {
   std::lock_guard<std::mutex> send_lock(send_mutex_);
   comm_->sendCommand("~MMOD\r");
+}
+
+void ArmCommand::setMotorMode(ArmJoint arm, ArmMotorMode mode)
+{
+  std::string arm_command("^MMOD ");
+
+  arm_command.append(std::to_string(static_cast<int>(arm)));
+  arm_command.append(" ");
+  arm_command.append(std::to_string(static_cast<int>(mode)));
+  arm_command.append("\r");
+
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  std::cerr << "Sending command: " << arm_command << std::endl;
+  comm_->sendCommand(arm_command);
 }
