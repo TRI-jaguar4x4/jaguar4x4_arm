@@ -11,15 +11,16 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(jaguar4x4_arm_msgs REQUIRED)
 find_package(jaguar4x4_comms REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 include_directories(include)
 
 add_executable(jaguar4x4_arm_node src/jaguar4x4_arm.cpp src/ArmCommand.cpp src/ArmReceive.cpp src/HandCommand.cpp)
-ament_target_dependencies(jaguar4x4_arm_node rclcpp geometry_msgs jaguar4x4_arm_msgs jaguar4x4_comms)
+ament_target_dependencies(jaguar4x4_arm_node geometry_msgs jaguar4x4_arm_msgs jaguar4x4_comms rclcpp sensor_msgs)
 
 install(TARGETS
   jaguar4x4_arm_node

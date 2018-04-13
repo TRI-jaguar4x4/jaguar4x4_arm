@@ -10,9 +10,10 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>geometry_msgs</depend>
-  <depend>rclcpp</depend>
   <depend>jaguar4x4_arm_msgs</depend>
   <depend>jaguar4x4_comms</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
