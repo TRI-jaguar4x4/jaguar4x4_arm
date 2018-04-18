@@ -120,7 +120,7 @@ private:
 
     // move arm up/down
     lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, msg->pose.position.z);
-    lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, msg->pose.position.z);
+    //lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, msg->pose.position.z);
 
     // rotate wrist around x
     if (msg->pose.position.x > 0) {
@@ -340,7 +340,6 @@ private:
 
     arm_zero_service_running_ = true;
 
-    std::cerr << "In open loop mode" << std::endl;
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
 
     std::cerr << "Lowering arm" << std::endl;
