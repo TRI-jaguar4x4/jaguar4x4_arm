@@ -30,11 +30,14 @@ class ArmCommand final {
   explicit ArmCommand(std::shared_ptr<AbstractCommunication> comm);
   void moveArmToRelativeEncoderPos(ArmJoint arm, int value);
   void moveArmToAbsoluteEncoderPos(ArmJoint arm, int value);
+  void moveArmAtSpeed(ArmJoint arm, int value);
   void configure(uint32_t time_interval_ms);
   void resume();
   void eStop();
   void ping();
   void setMotorMode(ArmJoint arm, ArmMotorMode mode);
+  void getMotorMaxRPM(ArmJoint arm);
+  void setMotorMaxRPM(ArmJoint arm);
 
 private:
   std::shared_ptr<AbstractCommunication> comm_;

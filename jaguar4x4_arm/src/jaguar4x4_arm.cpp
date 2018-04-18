@@ -1,6 +1,7 @@
 // Copyright 2018 Toyota Research Institute.  All rights reserved.
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <future>
 #include <mutex>
 #include <string>
@@ -12,6 +13,7 @@
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
+#include "std_srvs/srv/trigger.hpp"
 
 #include "jaguar4x4_arm_msgs/msg/lift.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
@@ -60,7 +62,14 @@ public:
     lift_cmd_->configure(kPubTimerIntervalMS);
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
     lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
-    lift_cmd_->eStop();
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm);
+    lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
+    // In theory we would eStop here to be sure the arm is stopped, but the arm
+    // seems to go into a passive mode when eStopped, meaning the arm can fall
+    // because of its own weight.  Instead, we set the software eStopped_ to
+    // true, but don't actually send an eStop, meaning that this code won't
+    // accept commands but the robot isn't necessarily in eStop.
+    // TODO: update the motor eStop state to say "software", "hardware", or "off"
 
     hand_cmd_->configure(kPubTimerIntervalMS);
     hand_cmd_->eStop();
@@ -73,6 +82,9 @@ public:
     joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>("joy",
                                                                 std::bind(&Jaguar4x4Arm::joyCallback, this, std::placeholders::_1),
                                                                 z_position_qos_profile);
+
+    arm_joint_zero_srv_ = this->create_service<std_srvs::srv::Trigger>("arm_joint_zero",
+                                                                                      std::bind(&Jaguar4x4Arm::armJointZero, this, std::placeholders::_1, std::placeholders::_2));
   }
 
   ~Jaguar4x4Arm()
@@ -153,11 +165,25 @@ private:
           MotorEncPosMsg *motor_enc_pos = dynamic_cast<MotorEncPosMsg*>(arm_msg.get());
           current_arm_enc_pos_lower_ = motor_enc_pos->encoder_pos_1_;
           current_arm_enc_pos_upper_ = motor_enc_pos->encoder_pos_2_;
+
+          std::chrono::duration<double, std::milli> diff_ms;
+          auto now = std::chrono::high_resolution_clock::now();
+          diff_ms = now - last_time;
+          //std::cerr << "Diff: " << diff_ms.count() << std::endl;
+          last_time = now;
+
+          if (arm_zero_service_running_) {
+            //std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
+            std::cerr << "Notifying" << std::endl;
+            encoder_pos_cv_.notify_one();
+          }
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
   }
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
 
   void handRecvThread(std::shared_future<void> local_future)
   {
@@ -299,8 +325,72 @@ private:
     } while (status == std::future_status::timeout);
   }
 
+  void armJointZero(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+  {
+    (void)request;
+
+    std::cerr << "Called arm Joint zero" << std::endl;
+
+    if (eStopped_) {
+      response->success = false;
+      response->message = "eStopped";
+      return;
+    }
+
+    arm_zero_service_running_ = true;
+
+    std::cerr << "In open loop mode" << std::endl;
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
+
+    std::cerr << "Lowering arm" << std::endl;
+
+    // TODO: is 60 good enough for all positions of the arm?
+    //lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 1000);
+
+    std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
+    int num_enc_same = 0;
+    int total_count = 0;
+    int64_t last_enc_count = current_arm_enc_pos_lower_;
+    while (num_enc_same < 20) {
+      std::cv_status cv_status = encoder_pos_cv_.wait_for(lk,
+                                                          std::chrono::milliseconds(kPubTimerIntervalMS * 25));
+      if (cv_status == std::cv_status::timeout) {
+        std::cerr << "No data in 100ms???" << std::endl;
+        break;
+      }
+      if (current_arm_enc_pos_lower_ == last_enc_count) {
+        num_enc_same++;
+      } else {
+        num_enc_same = 0;
+      }
+      total_count++;
+      if (total_count > 100) {
+        //break;
+      }
+      last_enc_count = current_arm_enc_pos_lower_;
+    }
+
+    std::cerr << "Stopped arm" << std::endl;
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+    std::cerr << "Back in position control" << std::endl;
+
+    arm_zero_service_running_ = false;
+
+    if (num_enc_same != 20) {
+      response->success = false;
+      response->message = "Error";
+    } else {
+      response->success = true;
+      response->message = "Success";
+    }
+  }
+
   // Tunable parameters
-  const uint32_t kPubTimerIntervalMS = 100;
+  const uint32_t kPubTimerIntervalMS = 20;
   const uint32_t kPingTimerIntervalMS = 20;
   const uint32_t kWatchdogIntervalMS = 500;
   static constexpr double kPingRecvPercentage = 0.6;
@@ -329,9 +419,13 @@ private:
   std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift>                   lift_pub_msg_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr           joy_sub_;
   std::atomic<bool>                                                eStopped_{true};
-  int64_t                                                          current_arm_enc_pos_lower_;
-  int64_t                                                          current_arm_enc_pos_upper_;
-  int64_t                                                          current_hand_enc_pos_wrist_;
+  std::atomic<int64_t>                                             current_arm_enc_pos_lower_;
+  std::atomic<int64_t>                                             current_arm_enc_pos_upper_;
+  std::atomic<int64_t>                                             current_hand_enc_pos_wrist_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr               arm_joint_zero_srv_;
+  std::mutex                                                       encoder_pos_mutex_;
+  std::condition_variable                                          encoder_pos_cv_;
+  std::atomic<bool>                                                arm_zero_service_running_{false};
 };
 
 int main(int argc, char * argv[])
