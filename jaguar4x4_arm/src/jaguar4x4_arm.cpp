@@ -435,6 +435,7 @@ private:
     }
 
     std::cerr << "Stopped arm" << std::endl;
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
     std::cv_status end_stop_cv_status;
     {
@@ -475,7 +476,6 @@ private:
       response->success = false;
       response->message = error;
     } else {
-      //lift_cmd_->setMotorEncoderCounter(ArmJoint::lower_arm, 0);
       response->success = true;
       response->message = "Success";
     }

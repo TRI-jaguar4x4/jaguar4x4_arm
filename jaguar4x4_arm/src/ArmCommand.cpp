@@ -167,16 +167,3 @@ void ArmCommand::setMotorPID(ArmJoint arm, int p, int i, int d)
   comm_->sendCommand(i_command);
   comm_->sendCommand(d_command);
 }
-
-void ArmCommand::setMotorEncoderCounter(ArmJoint arm, int value)
-{
-  std::string arm_command("!C ");
-  arm_command.append(std::to_string(static_cast<int>(arm)));
-  arm_command.append(" ");
-  arm_command.append(std::to_string(value));
-  arm_command.append("\r");
-
-  std::cerr << "Sending " << arm_command << std::endl;
-  std::lock_guard<std::mutex> send_lock(send_mutex_);
-  comm_->sendCommand(arm_command);
-}
