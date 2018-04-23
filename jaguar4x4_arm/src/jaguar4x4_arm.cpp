@@ -63,10 +63,14 @@ public:
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
     lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
 
-    //UNKNOWN MOTOR MESSAGE TYPE 'MXRPM=1000' (4D5852504D3D31303030)
-    //UNKNOWN MOTOR MESSAGE TYPE 'MAC=20000' (4D41433D3230303030)
-    //lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
-    //lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm);
+    //UNKNOWN MOTOR MESSAGE TYPE 'MXRPM=1000'
+    //UNKNOWN MOTOR MESSAGE TYPE 'MAC=20000'
+    //UNKNOWN MOTOR MESSAGE TYPE 'KP=30' (4B503D3330)
+    //UNKNOWN MOTOR MESSAGE TYPE 'KI=2' (4B493D32)
+    //UNKNOWN MOTOR MESSAGE TYPE 'KD=0' (4B443D30)
+
+    lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
+    //lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
     //lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
     // In theory we would eStop here to be sure the arm is stopped, but the arm
     // seems to go into a passive mode when eStopped, meaning the arm can fall
@@ -349,7 +353,8 @@ private:
 
     std::cerr << "Lowering arm" << std::endl;
 
-    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 3500);
+    // 500
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 150);
 
     std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
     int num_enc_same = 0;
@@ -377,6 +382,8 @@ private:
     std::cerr << "Stopped arm" << std::endl;
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
 
+    // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
+    // in closed_loop_count_position is 1000.
     lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
     // We sent ~MVEL 1 down to the motor to find out that the default in

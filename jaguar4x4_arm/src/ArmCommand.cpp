@@ -128,9 +128,20 @@ void ArmCommand::setMotorMaxRPM(ArmJoint arm, int value)
   arm_command.append("\r");
 
   std::lock_guard<std::mutex> send_lock(send_mutex_);
+  //comm_->sendCommand("^MAC 1 130000\r");
+  comm_->sendCommand("^MAC 1 120000\r");
+  //comm_->sendCommand("^MAC 1 60000\r");
   comm_->sendCommand(arm_command);
   comm_->sendCommand("~MVEL 1\r");
-  //comm_->sendCommand("?S 1\r");
+  comm_->sendCommand("~KP 1\r");
+  comm_->sendCommand("~KI 1\r");
+  comm_->sendCommand("~KD 1\r");
+  comm_->sendCommand("^KP 1 40\r");
+  comm_->sendCommand("^KI 1 0\r");
+  comm_->sendCommand("^KD 1 0\r");
+  //comm_->sendCommand("^KP 1 50\r");
+  //comm_->sendCommand("^KI 1 0\r");
+  //comm_->sendCommand("^KD 1 0\r");
 
   //comm_->sendCommand("^MXRPM 1 50000\r");
   //comm_->sendCommand("^MAC 1 60000\r");
