@@ -362,9 +362,15 @@ private:
 
     std::cv_status stop_cv_status;
     {
-      std::unique_lock<std::mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_);
-      stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
-                                                                         std::chrono::milliseconds(10000));
+      std::unique_lock<std::timed_mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_, std::defer_lock);
+      bool got_lock = stop_lk.try_lock_for(std::chrono::milliseconds(100));
+      if (!got_lock) {
+        std::cerr << "Couldn't acquire stop mutex!" << std::endl;
+        stop_cv_status = std::cv_status::timeout;
+      } else {
+        stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
+                                                                           std::chrono::milliseconds(10000));
+      }
     }
 
     if (stop_cv_status == std::cv_status::timeout) {
@@ -431,9 +437,15 @@ private:
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
     std::cv_status end_stop_cv_status;
     {
-      std::unique_lock<std::mutex> end_stop_lk(arm_zero_service_wait_for_motor_stop_mutex_);
-      end_stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(end_stop_lk,
-                                                                             std::chrono::milliseconds(10000));
+      std::unique_lock<std::timed_mutex> end_stop_lk(arm_zero_service_wait_for_motor_stop_mutex_, std::defer_lock);
+      bool got_lock = end_stop_lk.try_lock_for(std::chrono::milliseconds(100));
+      if (!got_lock) {
+        std::cerr << "Couldn't acquire stop lock at end" << std::endl;
+        end_stop_cv_status = std::cv_status::timeout;
+      } else {
+        end_stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(end_stop_lk,
+                                                                               std::chrono::milliseconds(10000));
+      }
     }
     if (end_stop_cv_status == std::cv_status::timeout) {
       std::cerr << "Timed out waiting for stop at end" << std::endl;
@@ -514,8 +526,8 @@ private:
     STOPPED_ACCEPTING_COMMANDS,
   };
   std::atomic<ZeroServiceWakeupReason>                             wakeup_reason_;
-  std::mutex                                                       arm_zero_service_wait_for_motor_stop_mutex_;
-  std::condition_variable                                          arm_zero_service_wait_for_motor_stop_cv_;
+  std::timed_mutex                                                 arm_zero_service_wait_for_motor_stop_mutex_;
+  std::condition_variable_any                                      arm_zero_service_wait_for_motor_stop_cv_;
 };
 
 int main(int argc, char * argv[])
