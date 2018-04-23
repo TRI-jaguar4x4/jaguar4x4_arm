@@ -36,9 +36,10 @@ class ArmCommand final {
   void eStop();
   void ping();
   void setMotorMode(ArmJoint arm, ArmMotorMode mode);
-  void getMotorMaxRPM(ArmJoint arm);
   void setMotorMaxRPM(ArmJoint arm, int value);
   void setArmPositionControlSpeed(ArmJoint arm, int value);
+  void setMotorAcceleration(ArmJoint arm, int value);
+  void setMotorPID(ArmJoint arm, int p, int i, int d);
 
 private:
   std::shared_ptr<AbstractCommunication> comm_;

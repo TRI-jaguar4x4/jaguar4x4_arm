@@ -63,15 +63,6 @@ public:
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
     lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
 
-    //UNKNOWN MOTOR MESSAGE TYPE 'MXRPM=1000'
-    //UNKNOWN MOTOR MESSAGE TYPE 'MAC=20000'
-    //UNKNOWN MOTOR MESSAGE TYPE 'KP=30' (4B503D3330)
-    //UNKNOWN MOTOR MESSAGE TYPE 'KI=2' (4B493D32)
-    //UNKNOWN MOTOR MESSAGE TYPE 'KD=0' (4B443D30)
-
-    lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
-    //lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
-    //lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
     // In theory we would eStop here to be sure the arm is stopped, but the arm
     // seems to go into a passive mode when eStopped, meaning the arm can fall
     // because of its own weight.  Instead, we set the software eStopped_ to
@@ -181,8 +172,7 @@ private:
           last_time = now;
 
           if (arm_zero_service_running_) {
-            //std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
-            std::cerr << "Notifying" << std::endl;
+            wakeup_reason_ = ZeroServiceWakeupReason::NEW_ENC_COUNT_AVAILABLE;
             encoder_pos_cv_.notify_one();
           }
         }
@@ -315,6 +305,10 @@ private:
               || num_hand_pings_recvd_ < kMinPingsExpected) {
             std::cerr << "Stopped accepting commands" << std::endl;
             accepting_commands_ = false;
+            // If the arm zero service is running, we need to notify it to wake
+            // up and deal with the fact that we stopped accepting commands.
+            wakeup_reason_ = ZeroServiceWakeupReason::STOPPED_ACCEPTING_COMMANDS;
+            encoder_pos_cv_.notify_one();
           } else {
             if (!accepting_commands_) {
               std::cerr << "accepting commands" << std::endl;
@@ -348,33 +342,47 @@ private:
 
     arm_zero_service_running_ = true;
 
+    // These are tunings that we found we needed to move the lower arm
+    // from any position to do the zero check.
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
     lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
+    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 120000);
+    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
 
     std::cerr << "Lowering arm" << std::endl;
 
-    // 500
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 150);
 
+    // Sleep for a little while to let the arm start moving.
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Now wait for updated encoder position counts.  If we go a number of
+    // times where the count is the same, we assume we found the cradle
+    // and return success.
     std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
+    static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
-    int total_count = 0;
     int64_t last_enc_count = current_arm_enc_pos_lower_;
-    while (num_enc_same < 20) {
+    std::string error{"Unknown error"};
+    while (num_enc_same < NUM_SAME_ENC_COUNTS) {
       std::cv_status cv_status = encoder_pos_cv_.wait_for(lk,
-                                                          std::chrono::milliseconds(kPubTimerIntervalMS * 25));
+                                                          std::chrono::milliseconds(kZeroNoDataIntervalMS));
       if (cv_status == std::cv_status::timeout) {
-        std::cerr << "No data in 100ms???" << std::endl;
+        std::cerr << "No data in " << kZeroNoDataIntervalMS << "ms, giving up" << std::endl;
+        error = "No data before timeout";
         break;
       }
+
+      if (wakeup_reason_ == ZeroServiceWakeupReason::STOPPED_ACCEPTING_COMMANDS) {
+        std::cerr << "Stopped talking to robot; aborting zero service" << std::endl;
+        error = "Stopped talking to robot";
+        break;
+      }
+
       if (current_arm_enc_pos_lower_ == last_enc_count) {
         num_enc_same++;
       } else {
         num_enc_same = 0;
-      }
-      total_count++;
-      if (total_count > 100) {
-        //break;
       }
       last_enc_count = current_arm_enc_pos_lower_;
     }
@@ -382,6 +390,12 @@ private:
     std::cerr << "Stopped arm" << std::endl;
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
 
+    // We sent ~KP, ~KI, ~KD down to the motor to find out that the default
+    // PID tuning is 30, 2, 0 in closed_loop_count_position.
+    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 30, 2, 0);
+    // We sent ~MAC 1 down to the motor to find out that the default MAC
+    // in closed_loop_count_position is 20000
+    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 20000);
     // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
     // in closed_loop_count_position is 1000.
     lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
@@ -393,9 +407,9 @@ private:
 
     arm_zero_service_running_ = false;
 
-    if (num_enc_same != 20) {
+    if (num_enc_same != NUM_SAME_ENC_COUNTS) {
       response->success = false;
-      response->message = "Error";
+      response->message = error;
     } else {
       response->success = true;
       response->message = "Success";
@@ -406,6 +420,9 @@ private:
   const uint32_t kPubTimerIntervalMS = 20;
   const uint32_t kPingTimerIntervalMS = 20;
   const uint32_t kWatchdogIntervalMS = 500;
+  // During the arm zero service, if we didn't get any data in this amount of
+  // time, just give up and assume we aren't currently talking to the robot.
+  const uint32_t kZeroNoDataIntervalMS = 500;
   static constexpr double kPingRecvPercentage = 0.6;
 
   // Constants calculated based on the tunable parameters above
@@ -439,6 +456,12 @@ private:
   std::mutex                                                       encoder_pos_mutex_;
   std::condition_variable                                          encoder_pos_cv_;
   std::atomic<bool>                                                arm_zero_service_running_{false};
+  enum class ZeroServiceWakeupReason
+  {
+    NEW_ENC_COUNT_AVAILABLE,
+    STOPPED_ACCEPTING_COMMANDS,
+  };
+  std::atomic<ZeroServiceWakeupReason>                             wakeup_reason_;
 };
 
 int main(int argc, char * argv[])

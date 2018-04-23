@@ -112,39 +112,52 @@ void ArmCommand::setMotorMode(ArmJoint arm, ArmMotorMode mode)
   comm_->sendCommand(arm_command);
 }
 
-void ArmCommand::getMotorMaxRPM(ArmJoint arm)
-{
-  std::lock_guard<std::mutex> send_lock(send_mutex_);
-  comm_->sendCommand("~MXRPM 1\r");
-  comm_->sendCommand("~MAC 1\r");
-}
-
 void ArmCommand::setMotorMaxRPM(ArmJoint arm, int value)
 {
   std::string arm_command("^MXRPM ");
   arm_command.append(std::to_string(static_cast<int>(arm)));
   arm_command.append(" ");
-  arm_command.append(std::to_string(static_cast<int>(value)));
+  arm_command.append(std::to_string(value));
   arm_command.append("\r");
 
   std::lock_guard<std::mutex> send_lock(send_mutex_);
-  //comm_->sendCommand("^MAC 1 130000\r");
-  comm_->sendCommand("^MAC 1 120000\r");
-  //comm_->sendCommand("^MAC 1 60000\r");
   comm_->sendCommand(arm_command);
-  comm_->sendCommand("~MVEL 1\r");
-  comm_->sendCommand("~KP 1\r");
-  comm_->sendCommand("~KI 1\r");
-  comm_->sendCommand("~KD 1\r");
-  comm_->sendCommand("^KP 1 40\r");
-  comm_->sendCommand("^KI 1 0\r");
-  comm_->sendCommand("^KD 1 0\r");
-  //comm_->sendCommand("^KP 1 50\r");
-  //comm_->sendCommand("^KI 1 0\r");
-  //comm_->sendCommand("^KD 1 0\r");
+}
 
-  //comm_->sendCommand("^MXRPM 1 50000\r");
-  //comm_->sendCommand("^MAC 1 60000\r");
-  //comm_->sendCommand("^MXRPM 1 4000\r");
-  //comm_->sendCommand("^MAC 1 20000\r");
+void ArmCommand::setMotorAcceleration(ArmJoint arm, int value)
+{
+  std::string arm_command("^MAC ");
+  arm_command.append(std::to_string(static_cast<int>(arm)));
+  arm_command.append(" ");
+  arm_command.append(std::to_string(value));
+  arm_command.append("\r");
+
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(arm_command);
+}
+
+void ArmCommand::setMotorPID(ArmJoint arm, int p, int i, int d)
+{
+  std::string p_command("^KP ");
+  p_command.append(std::to_string(static_cast<int>(arm)));
+  p_command.append(" ");
+  p_command.append(std::to_string(p));
+  p_command.append("\r");
+
+  std::string i_command("^KI ");
+  i_command.append(std::to_string(static_cast<int>(arm)));
+  i_command.append(" ");
+  i_command.append(std::to_string(i));
+  i_command.append("\r");
+
+  std::string d_command("^KD ");
+  d_command.append(std::to_string(static_cast<int>(arm)));
+  d_command.append(" ");
+  d_command.append(std::to_string(d));
+  d_command.append("\r");
+
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(p_command);
+  comm_->sendCommand(i_command);
+  comm_->sendCommand(d_command);
 }
