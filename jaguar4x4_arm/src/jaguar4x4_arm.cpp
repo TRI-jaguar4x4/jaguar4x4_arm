@@ -183,6 +183,15 @@ private:
             wakeup_reason_ = ZeroServiceWakeupReason::NEW_ENC_COUNT_AVAILABLE;
             encoder_pos_cv_.notify_one();
           }
+        } else if (arm_msg->getType() == AbstractMotorMsg::MessageType::motor_power) {
+          MotorPowerMsg *motor_power =
+            dynamic_cast<MotorPowerMsg*>(arm_msg.get());
+
+          if (arm_zero_service_running_) {
+            if (std::abs(motor_power->motor_power_1_) < 5) {
+              arm_zero_service_wait_for_motor_stop_cv_.notify_one();
+            }
+          }
         }
       }
       status = local_future.wait_for(std::chrono::seconds(0));
@@ -348,12 +357,36 @@ private:
 
     arm_zero_service_running_ = true;
 
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+
+    std::cv_status stop_cv_status;
+    {
+      std::unique_lock<std::mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_);
+      stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
+                                                                         std::chrono::milliseconds(10000));
+    }
+
+    if (stop_cv_status == std::cv_status::timeout) {
+      std::cerr << "Motor didn't stop in " << 10000 << "ms, giving up" << std::endl;
+      response->success = false;
+      response->message = "Motor didn't stop";
+      lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+      arm_zero_service_running_ = false;
+      return;
+    }
+
+    std::cerr << "Setting mode to speed" << std::endl;
     // These are tunings that we found we needed to move the lower arm
     // from any position to do the zero check.
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
     lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
     lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 120000);
     lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
+
+    static const int NUM_SAME_ENC_COUNTS = 10;
+    int num_enc_same = 0;
+    std::string error{"Unknown error"};
 
     std::cerr << "Lowering arm" << std::endl;
 
@@ -365,10 +398,7 @@ private:
     // Now wait for updated encoder position counts.  If we go a number of
     // times where the count is the same, we assume we found the cradle
     // and return success.
-    static const int NUM_SAME_ENC_COUNTS = 10;
-    int num_enc_same = 0;
     int64_t last_enc_count = current_arm_enc_pos_lower_;
-    std::string error{"Unknown error"};
 
     std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
     while (num_enc_same < NUM_SAME_ENC_COUNTS) {
@@ -399,6 +429,17 @@ private:
 
     std::cerr << "Stopped arm" << std::endl;
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+    std::cv_status end_stop_cv_status;
+    {
+      std::unique_lock<std::mutex> end_stop_lk(arm_zero_service_wait_for_motor_stop_mutex_);
+      end_stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(end_stop_lk,
+                                                                             std::chrono::milliseconds(10000));
+    }
+    if (end_stop_cv_status == std::cv_status::timeout) {
+      std::cerr << "Timed out waiting for stop at end" << std::endl;
+      error = "Timed out waiting for stop at end";
+      num_enc_same = 0;
+    }
 
     // We sent ~KP, ~KI, ~KD down to the motor to find out that the default
     // PID tuning is 30, 2, 0 in closed_loop_count_position.
@@ -421,6 +462,7 @@ private:
       response->success = false;
       response->message = error;
     } else {
+      //lift_cmd_->setMotorEncoderCounter(ArmJoint::lower_arm, 0);
       response->success = true;
       response->message = "Success";
     }
@@ -472,6 +514,8 @@ private:
     STOPPED_ACCEPTING_COMMANDS,
   };
   std::atomic<ZeroServiceWakeupReason>                             wakeup_reason_;
+  std::mutex                                                       arm_zero_service_wait_for_motor_stop_mutex_;
+  std::condition_variable                                          arm_zero_service_wait_for_motor_stop_cv_;
 };
 
 int main(int argc, char * argv[])

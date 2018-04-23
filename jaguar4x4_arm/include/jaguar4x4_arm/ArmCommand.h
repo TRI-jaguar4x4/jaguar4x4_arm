@@ -40,6 +40,7 @@ class ArmCommand final {
   void setArmPositionControlSpeed(ArmJoint arm, int value);
   void setMotorAcceleration(ArmJoint arm, int value);
   void setMotorPID(ArmJoint arm, int p, int i, int d);
+  void setMotorEncoderCounter(ArmJoint arm, int value);
 
 private:
   std::shared_ptr<AbstractCommunication> comm_;

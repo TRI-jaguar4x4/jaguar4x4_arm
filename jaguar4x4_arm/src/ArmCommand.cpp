@@ -54,7 +54,7 @@ void ArmCommand::moveArmToAbsoluteEncoderPos(ArmJoint arm, int value)
 
 void ArmCommand::moveArmAtSpeed(ArmJoint arm, int value)
 {
-  std::string arm_command("!S ");
+  std::string arm_command("!G ");
   arm_command.append(std::to_string(static_cast<int>(arm)));
   arm_command.append(" ");
   arm_command.append(std::to_string(value));
@@ -66,7 +66,14 @@ void ArmCommand::moveArmAtSpeed(ArmJoint arm, int value)
 
 void ArmCommand::setArmPositionControlSpeed(ArmJoint arm, int value)
 {
-  moveArmAtSpeed(arm, value);
+  std::string arm_command("!S ");
+  arm_command.append(std::to_string(static_cast<int>(arm)));
+  arm_command.append(" ");
+  arm_command.append(std::to_string(value));
+  arm_command.append("\r");
+
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(arm_command);
 }
 
 void ArmCommand::configure(uint32_t time_interval_ms)
@@ -159,4 +166,17 @@ void ArmCommand::setMotorPID(ArmJoint arm, int p, int i, int d)
   comm_->sendCommand(p_command);
   comm_->sendCommand(i_command);
   comm_->sendCommand(d_command);
+}
+
+void ArmCommand::setMotorEncoderCounter(ArmJoint arm, int value)
+{
+  std::string arm_command("!C ");
+  arm_command.append(std::to_string(static_cast<int>(arm)));
+  arm_command.append(" ");
+  arm_command.append(std::to_string(value));
+  arm_command.append("\r");
+
+  std::cerr << "Sending " << arm_command << std::endl;
+  std::lock_guard<std::mutex> send_lock(send_mutex_);
+  comm_->sendCommand(arm_command);
 }
