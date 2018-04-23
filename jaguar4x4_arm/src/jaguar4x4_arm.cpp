@@ -406,8 +406,9 @@ private:
     // and return success.
     int64_t last_enc_count = current_arm_enc_pos_lower_;
 
-    std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
-    while (num_enc_same < NUM_SAME_ENC_COUNTS) {
+    std::unique_lock<std::timed_mutex> lk(encoder_pos_mutex_, std::defer_lock);
+    bool got_lock = lk.try_lock_for(std::chrono::milliseconds(100));
+    while (got_lock && num_enc_same < NUM_SAME_ENC_COUNTS) {
       std::cv_status cv_status = encoder_pos_cv_.wait_for(lk,
                                                           std::chrono::milliseconds(kZeroNoDataIntervalMS));
       if (cv_status == std::cv_status::timeout) {
@@ -517,8 +518,8 @@ private:
   std::atomic<int64_t>                                             current_arm_enc_pos_upper_;
   std::atomic<int64_t>                                             current_hand_enc_pos_wrist_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr               arm_joint_zero_srv_;
-  std::mutex                                                       encoder_pos_mutex_;
-  std::condition_variable                                          encoder_pos_cv_;
+  std::timed_mutex                                                 encoder_pos_mutex_;
+  std::condition_variable_any                                      encoder_pos_cv_;
   std::atomic<bool>                                                arm_zero_service_running_{false};
   enum class ZeroServiceWakeupReason
   {
