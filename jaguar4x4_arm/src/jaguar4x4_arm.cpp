@@ -270,10 +270,6 @@ private:
     // the joystick, which we use as "resume the robot".  We start out with the
     // robot in eStop, so you always must resume it to start using the robot.
 
-    if (!msg->buttons[10] && !msg->buttons[11]) {
-      return;
-    }
-
     if (msg->buttons[11]) {
       // If we see eStop, set our eStopped_ atomic variable to true.  This will
       // ensure that the pingThread does not start accepting commands while we
@@ -287,7 +283,7 @@ private:
       hand_cmd_->eStop();
 
       std::cerr << "ESTOP" << std::endl;
-    } else {
+    } else if (msg->buttons[10]) {
       // Resume the arm.  Since the motors are in position control, we drive it
       // to whatever the current arm position is so that it doesn't continue to
       // move.  We also set eStopped to false, and then rely on the pingThread
@@ -300,6 +296,32 @@ private:
       hand_cmd_->resume();
       lift_cmd_->resume();
       eStopped_ = false;
+    } else if (msg->buttons[3]) {
+      // UP
+      if (!msg->buttons[5] || !accepting_commands_) {
+        return;
+      }
+      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, relative_pos_to_move_);
+    } else if (msg->buttons[1]) {
+      // DOWN
+      if (!msg->buttons[5] || !accepting_commands_) {
+        return;
+      }
+      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, -relative_pos_to_move_);
+    } else if (msg->buttons[0]) {
+      // Increase amount
+      relative_pos_to_move_ += 1;
+      if (relative_pos_to_move_ > 50) {
+        relative_pos_to_move_ = 50;
+      }
+      std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
+    } else if (msg->buttons[2]) {
+      // Decrease amount
+      relative_pos_to_move_ -= 1;
+      if (relative_pos_to_move_ < 1) {
+        relative_pos_to_move_ = 1;
+      }
+      std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
     }
   }
 
@@ -529,6 +551,7 @@ private:
   std::atomic<ZeroServiceWakeupReason>                             wakeup_reason_;
   std::timed_mutex                                                 arm_zero_service_wait_for_motor_stop_mutex_;
   std::condition_variable_any                                      arm_zero_service_wait_for_motor_stop_cv_;
+  int                                                              relative_pos_to_move_{10};
 };
 
 int main(int argc, char * argv[])
