@@ -54,7 +54,7 @@ void ArmCommand::moveArmToAbsoluteEncoderPos(ArmJoint arm, int value)
 
 void ArmCommand::moveArmAtSpeed(ArmJoint arm, int value)
 {
-  std::string arm_command("!G ");
+  std::string arm_command("!S ");
   arm_command.append(std::to_string(static_cast<int>(arm)));
   arm_command.append(" ");
   arm_command.append(std::to_string(value));
@@ -62,6 +62,11 @@ void ArmCommand::moveArmAtSpeed(ArmJoint arm, int value)
 
   std::lock_guard<std::mutex> send_lock(send_mutex_);
   comm_->sendCommand(arm_command);
+}
+
+void ArmCommand::setArmPositionControlSpeed(ArmJoint arm, int value)
+{
+  moveArmAtSpeed(arm, value);
 }
 
 void ArmCommand::configure(uint32_t time_interval_ms)
@@ -114,9 +119,21 @@ void ArmCommand::getMotorMaxRPM(ArmJoint arm)
   comm_->sendCommand("~MAC 1\r");
 }
 
-void ArmCommand::setMotorMaxRPM(ArmJoint arm)
+void ArmCommand::setMotorMaxRPM(ArmJoint arm, int value)
 {
+  std::string arm_command("^MXRPM ");
+  arm_command.append(std::to_string(static_cast<int>(arm)));
+  arm_command.append(" ");
+  arm_command.append(std::to_string(static_cast<int>(value)));
+  arm_command.append("\r");
+
   std::lock_guard<std::mutex> send_lock(send_mutex_);
-  comm_->sendCommand("^MXRPM 1 50000\r");
-  comm_->sendCommand("^MAC 1 500000\r");
+  comm_->sendCommand(arm_command);
+  comm_->sendCommand("~MVEL 1\r");
+  //comm_->sendCommand("?S 1\r");
+
+  //comm_->sendCommand("^MXRPM 1 50000\r");
+  //comm_->sendCommand("^MAC 1 60000\r");
+  //comm_->sendCommand("^MXRPM 1 4000\r");
+  //comm_->sendCommand("^MAC 1 20000\r");
 }

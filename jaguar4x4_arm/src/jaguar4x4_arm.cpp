@@ -62,8 +62,12 @@ public:
     lift_cmd_->configure(kPubTimerIntervalMS);
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
     lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
-    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm);
-    lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
+
+    //UNKNOWN MOTOR MESSAGE TYPE 'MXRPM=1000' (4D5852504D3D31303030)
+    //UNKNOWN MOTOR MESSAGE TYPE 'MAC=20000' (4D41433D3230303030)
+    //lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
+    //lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm);
+    //lift_cmd_->getMotorMaxRPM(ArmJoint::lower_arm);
     // In theory we would eStop here to be sure the arm is stopped, but the arm
     // seems to go into a passive mode when eStopped, meaning the arm can fall
     // because of its own weight.  Instead, we set the software eStopped_ to
@@ -341,12 +345,11 @@ private:
     arm_zero_service_running_ = true;
 
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
 
     std::cerr << "Lowering arm" << std::endl;
 
-    // TODO: is 60 good enough for all positions of the arm?
-    //lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
-    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 1000);
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 3500);
 
     std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
     int num_enc_same = 0;
@@ -374,7 +377,11 @@ private:
     std::cerr << "Stopped arm" << std::endl;
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
 
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+    // We sent ~MVEL 1 down to the motor to find out that the default in
+    // closed_loop_count_position is 200.
+    lift_cmd_->setArmPositionControlSpeed(ArmJoint::lower_arm, 200);
     std::cerr << "Back in position control" << std::endl;
 
     arm_zero_service_running_ = false;
