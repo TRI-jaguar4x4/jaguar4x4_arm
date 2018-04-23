@@ -108,7 +108,6 @@ void ArmCommand::setMotorMode(ArmJoint arm, ArmMotorMode mode)
   arm_command.append("\r");
 
   std::lock_guard<std::mutex> send_lock(send_mutex_);
-  std::cerr << "Sending command: " << arm_command << std::endl;
   comm_->sendCommand(arm_command);
 }
 

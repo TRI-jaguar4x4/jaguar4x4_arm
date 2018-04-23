@@ -60,8 +60,22 @@ public:
     ping_thread_ = std::thread(&Jaguar4x4Arm::pingThread, this, future_);
 
     lift_cmd_->configure(kPubTimerIntervalMS);
+
+    // Configure the lower joint to the "defaults" (that is, the values it has
+    // stored in EEPROM, what it uses when it comes out of reset).  For the
+    // most part this is redundant, but gets the joint into a default mode if
+    // we forgot to reset it after playing around with it.
+    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 30, 2, 0);
+    // We sent ~MAC 1 down to the motor to find out that the default MAC
+    // in closed_loop_count_position is 20000
+    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 20000);
+    // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
+    // in closed_loop_count_position is 1000.
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
     lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
-    lift_cmd_->setMotorMode(ArmJoint::upper_arm, ArmMotorMode::closed_loop_count_position);
+    // We sent ~MVEL 1 down to the motor to find out that the default in
+    // closed_loop_count_position is 200.
+    lift_cmd_->setArmPositionControlSpeed(ArmJoint::lower_arm, 200);
 
     // In theory we would eStop here to be sure the arm is stopped, but the arm
     // seems to go into a passive mode when eStopped, meaning the arm can fall
@@ -83,7 +97,7 @@ public:
                                                                 z_position_qos_profile);
 
     arm_joint_zero_srv_ = this->create_service<std_srvs::srv::Trigger>("arm_joint_zero",
-                                                                                      std::bind(&Jaguar4x4Arm::armJointZero, this, std::placeholders::_1, std::placeholders::_2));
+                                                                       std::bind(&Jaguar4x4Arm::armJointZero, this, std::placeholders::_1, std::placeholders::_2));
   }
 
   ~Jaguar4x4Arm()
@@ -165,12 +179,6 @@ private:
           current_arm_enc_pos_lower_ = motor_enc_pos->encoder_pos_1_;
           current_arm_enc_pos_upper_ = motor_enc_pos->encoder_pos_2_;
 
-          std::chrono::duration<double, std::milli> diff_ms;
-          auto now = std::chrono::high_resolution_clock::now();
-          diff_ms = now - last_time;
-          //std::cerr << "Diff: " << diff_ms.count() << std::endl;
-          last_time = now;
-
           if (arm_zero_service_running_) {
             wakeup_reason_ = ZeroServiceWakeupReason::NEW_ENC_COUNT_AVAILABLE;
             encoder_pos_cv_.notify_one();
@@ -180,8 +188,6 @@ private:
       status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
   }
-
-  std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
 
   void handRecvThread(std::shared_future<void> local_future)
   {
@@ -359,11 +365,12 @@ private:
     // Now wait for updated encoder position counts.  If we go a number of
     // times where the count is the same, we assume we found the cradle
     // and return success.
-    std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
     static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
     int64_t last_enc_count = current_arm_enc_pos_lower_;
     std::string error{"Unknown error"};
+
+    std::unique_lock<std::mutex> lk(encoder_pos_mutex_);
     while (num_enc_same < NUM_SAME_ENC_COUNTS) {
       std::cv_status cv_status = encoder_pos_cv_.wait_for(lk,
                                                           std::chrono::milliseconds(kZeroNoDataIntervalMS));
@@ -379,6 +386,9 @@ private:
         break;
       }
 
+      // TODO: Instead of needing the encoder positions needing to be *exactly*
+      // the same, it should be within some margin of error.  This mostly
+      // allows us to speed up detection of hitting the cradle.
       if (current_arm_enc_pos_lower_ == last_enc_count) {
         num_enc_same++;
       } else {
