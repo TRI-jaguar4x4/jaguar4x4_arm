@@ -364,21 +364,21 @@ private:
     } while (status == std::future_status::timeout);
   }
 
-  void setArmPositionModeDefaults()
+  void setArmPositionModeDefaults(ArmJoint joint)
   {
     // We sent ~KP, ~KI, ~KD down to the motor to find out that the default
     // PID tuning is 30, 2, 0 in closed_loop_count_position.
-    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 30, 2, 0);
+    lift_cmd_->setMotorPID(joint, 30, 2, 0);
     // We sent ~MAC 1 down to the motor to find out that the default MAC
     // in closed_loop_count_position is 20000
-    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 20000);
+    lift_cmd_->setMotorAcceleration(joint, 20000);
     // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
     // in closed_loop_count_position is 1000.
-    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+    lift_cmd_->setMotorMaxRPM(joint, 1000);
+    lift_cmd_->setMotorMode(joint, ArmMotorMode::closed_loop_count_position);
     // We sent ~MVEL 1 down to the motor to find out that the default in
     // closed_loop_count_position is 200.
-    lift_cmd_->setArmPositionControlSpeed(ArmJoint::lower_arm, 200);
+    lift_cmd_->setArmPositionControlSpeed(joint, 200);
   }
 
   void setArmSpeedModeDefaults()
@@ -391,12 +391,12 @@ private:
     lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
   }
 
-  std::cv_status stopArm()
+  std::cv_status stopJoint(ArmJoint joint)
   {
     // To truly stop the arm, we have to first put it into open loop mode and
     // then make sure the speed is 0.
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
-    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+    lift_cmd_->setMotorMode(joint, ArmMotorMode::open_loop);
+    lift_cmd_->moveArmAtSpeed(joint, 0);
 
     std::unique_lock<std::timed_mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_,
                                                std::defer_lock);
@@ -410,38 +410,14 @@ private:
                                                              std::chrono::milliseconds(10000));
   }
 
-  void armJointZero(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-                    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+  std::string calibrateLowerArmToCradle()
   {
-    (void)request;
-
-    std::cerr << "Called arm Joint zero" << std::endl;
-
-    if (eStopped_) {
-      response->success = false;
-      response->message = "eStopped";
-      return;
-    }
-
-    arm_zero_service_running_ = true;
-
-    std::cv_status stop_cv_status = stopArm();
-
-    if (stop_cv_status == std::cv_status::timeout) {
-      std::cerr << "Motor didn't stop in " << 10000 << "ms, giving up" << std::endl;
-      response->success = false;
-      response->message = "Motor didn't stop";
-      setArmPositionModeDefaults();
-      arm_zero_service_running_ = false;
-      return;
-    }
-
     std::cerr << "Setting mode to speed" << std::endl;
     setArmSpeedModeDefaults();
 
     static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
-    std::string error{"Unknown error"};
+    std::string error;
 
     std::cerr << "Lowering arm" << std::endl;
 
@@ -483,26 +459,70 @@ private:
       last_enc_count = current_arm_enc_pos_lower_;
     }
 
-    std::cv_status end_stop_cv_status = stopArm();
+    std::cv_status end_stop_cv_status = stopJoint(ArmJoint::lower_arm);
     if (end_stop_cv_status == std::cv_status::timeout) {
       std::cerr << "Timed out waiting for stop at end" << std::endl;
       error = "Timed out waiting for stop at end";
       num_enc_same = 0;
     }
 
-    setArmPositionModeDefaults();
-    std::cerr << "Back in position control" << std::endl;
+    if (num_enc_same == NUM_SAME_ENC_COUNTS) {
+      std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
+    } else {
+      error = "Bad calibration; arm was moving";
+    }
 
-    std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
+    setArmPositionModeDefaults(ArmJoint::lower_arm);
+
+    return error;
+  }
+
+  void armJointZero(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+                    std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+  {
+    (void)request;
+
+    std::cerr << "Called arm Joint zero" << std::endl;
+
+    if (eStopped_) {
+      response->success = false;
+      response->message = "eStopped";
+      return;
+    }
+
+    arm_zero_service_running_ = true;
+
+    std::cv_status stop_cv_status = stopJoint(ArmJoint::lower_arm);
+    if (stop_cv_status == std::cv_status::timeout) {
+      response->success = false;
+      response->message = "Lower joint didn't stop";
+      setArmPositionModeDefaults(ArmJoint::lower_arm);
+      arm_zero_service_running_ = false;
+      return;
+    }
+
+    stop_cv_status = stopJoint(ArmJoint::upper_arm);
+    if (stop_cv_status == std::cv_status::timeout) {
+      response->success = false;
+      response->message = "Upper joint didn't stop";
+      setArmPositionModeDefaults(ArmJoint::upper_arm);
+      arm_zero_service_running_ = false;
+      return;
+    }
+
+    std::string error = calibrateLowerArmToCradle();
+
+    setArmPositionModeDefaults(ArmJoint::upper_arm);
+    std::cerr << "Back in position control" << std::endl;
 
     arm_zero_service_running_ = false;
 
-    if (num_enc_same != NUM_SAME_ENC_COUNTS) {
-      response->success = false;
-      response->message = error;
-    } else {
+    if (error.empty()) {
       response->success = true;
       response->message = "Success";
+    } else {
+      response->success = false;
+      response->message = error;
     }
   }
 
