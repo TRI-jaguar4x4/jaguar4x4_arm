@@ -297,25 +297,37 @@ private:
       lift_cmd_->resume();
       eStopped_ = false;
     } else if (msg->buttons[3]) {
-      // UP
+      // Lower Joint UP
       if (!msg->buttons[5] || !accepting_commands_) {
         return;
       }
       lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, relative_pos_to_move_);
     } else if (msg->buttons[1]) {
-      // DOWN
+      // Lower Joint DOWN
       if (!msg->buttons[5] || !accepting_commands_) {
         return;
       }
       lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, -relative_pos_to_move_);
     } else if (msg->buttons[0]) {
+      // Upper Joint UP
+      if (!msg->buttons[5] || !accepting_commands_) {
+        return;
+      }
+      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, relative_pos_to_move_);
+    } else if (msg->buttons[2]) {
+      // Upper Joint DOWN
+      if (!msg->buttons[5] || !accepting_commands_) {
+        return;
+      }
+      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, -relative_pos_to_move_);
+    } else if (msg->buttons[6]) {
       // Increase amount
       relative_pos_to_move_ += 1;
       if (relative_pos_to_move_ > 50) {
         relative_pos_to_move_ = 50;
       }
       std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
-    } else if (msg->buttons[2]) {
+    } else if (msg->buttons[7]) {
       // Decrease amount
       relative_pos_to_move_ -= 1;
       if (relative_pos_to_move_ < 1) {
