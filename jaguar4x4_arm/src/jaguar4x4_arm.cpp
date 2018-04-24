@@ -147,6 +147,9 @@ private:
           }
         }
       }
+
+      arm_msg.reset();
+
       status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
   }
@@ -177,6 +180,9 @@ private:
           current_hand_enc_pos_wrist_ = motor_enc_pos->encoder_pos_1_;
         }
       }
+
+      hand_msg.reset();
+
       status = local_future.wait_for(std::chrono::seconds(0));
     } while (status == std::future_status::timeout);
   }
@@ -372,7 +378,7 @@ private:
     }
 
     return arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
-                                                             std::chrono::milliseconds(10000));
+                                                             std::chrono::milliseconds(2000));
   }
 
   std::string calibrateLowerArmToCradle()
@@ -403,13 +409,13 @@ private:
                                                           std::chrono::milliseconds(kZeroNoDataIntervalMS));
       if (cv_status == std::cv_status::timeout) {
         std::cerr << "No data in " << kZeroNoDataIntervalMS << "ms, giving up" << std::endl;
-        error = "No data before timeout";
+        error += "No data before timeout ";
         break;
       }
 
       if (wakeup_reason_ == ZeroServiceWakeupReason::STOPPED_ACCEPTING_COMMANDS) {
         std::cerr << "Stopped talking to robot; aborting zero service" << std::endl;
-        error = "Stopped talking to robot";
+        error += "Stopped talking to robot ";
         break;
       }
 
@@ -424,14 +430,14 @@ private:
     std::cv_status end_stop_cv_status = stopJoint(ArmJoint::lower_arm);
     if (end_stop_cv_status == std::cv_status::timeout) {
       std::cerr << "Timed out waiting for stop at end" << std::endl;
-      error = "Timed out waiting for stop at end";
+      error += "Timed out waiting for stop at end ";
       num_enc_same = 0;
     }
 
     if (num_enc_same == NUM_SAME_ENC_COUNTS) {
       std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
-    } else if (error.empty()) {
-      error = "Bad calibration; arm was moving";
+    } else {
+      error += "Bad calibration; arm was moving ";
     }
 
     setArmPositionModeDefaults(ArmJoint::lower_arm);
