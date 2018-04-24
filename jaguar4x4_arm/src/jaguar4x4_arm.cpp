@@ -381,14 +381,14 @@ private:
     lift_cmd_->setArmPositionControlSpeed(joint, 200);
   }
 
-  void setArmSpeedModeDefaults()
+  void setArmSpeedModeDefaults(ArmJoint joint)
   {
     // These are tunings that we found we needed to move the lower arm
     // from any position to do the zero check.
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
-    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
-    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 120000);
-    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
+    lift_cmd_->setMotorMode(joint, ArmMotorMode::closed_loop_speed);
+    lift_cmd_->setMotorMaxRPM(joint, 4000);
+    lift_cmd_->setMotorAcceleration(joint, 120000);
+    lift_cmd_->setMotorPID(joint, 50, 0, 0);
   }
 
   std::cv_status stopJoint(ArmJoint joint)
@@ -413,7 +413,7 @@ private:
   std::string calibrateLowerArmToCradle()
   {
     std::cerr << "Setting mode to speed" << std::endl;
-    setArmSpeedModeDefaults();
+    setArmSpeedModeDefaults(ArmJoint::lower_arm);
 
     static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
@@ -448,10 +448,7 @@ private:
         break;
       }
 
-      // TODO: Instead of needing the encoder positions needing to be *exactly*
-      // the same, it should be within some margin of error.  This mostly
-      // allows us to speed up detection of hitting the cradle.
-      if (current_arm_enc_pos_lower_ == last_enc_count) {
+      if (current_arm_enc_pos_lower_ > (last_enc_count - 10) && current_arm_enc_pos_lower_ < (last_enc_count + 10)) {
         num_enc_same++;
       } else {
         num_enc_same = 0;
@@ -468,7 +465,7 @@ private:
 
     if (num_enc_same == NUM_SAME_ENC_COUNTS) {
       std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
-    } else {
+    } else if (error.empty()) {
       error = "Bad calibration; arm was moving";
     }
 
@@ -511,9 +508,6 @@ private:
     }
 
     std::string error = calibrateLowerArmToCradle();
-
-    setArmPositionModeDefaults(ArmJoint::upper_arm);
-    std::cerr << "Back in position control" << std::endl;
 
     arm_zero_service_running_ = false;
 
