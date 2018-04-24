@@ -46,11 +46,6 @@ public:
     z_position_qos_profile.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
     z_position_qos_profile.durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
 
-    z_pos_cmd_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-        "z_position", std::bind(&Jaguar4x4Arm::liftCallback,
-                                this, std::placeholders::_1),
-        z_position_qos_profile);
-
     future_ = exit_signal_.get_future();
 
     lift_pub_msg_ = std::make_shared<jaguar4x4_arm_msgs::msg::Lift>();
@@ -110,48 +105,6 @@ public:
   }
 
 private:
-  // clalancette: To test this by hand, the following command-line can
-  // be used:
-  // ros2 topic pub /z_position geometry_msgs/PoseStamped "{header:{stamp:{sec: 4, nanosec: 14}, frame_id: 'frame'}, pose:{position:{x: 1, y: 2, z: 3}, orientation:{x: 4, y: 5, z: 6, w: 7}}}"
-  void liftCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
-  {
-    if (!accepting_commands_) {
-      return;
-    }
-
-    int64_t this_stamp;
-    this_stamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
-
-    if (this_stamp < last_stamp_) {
-      // An older command came through, just ignore it.  Note that we currently
-      // allow equal timestamps to make using the command-line easier.
-      return;
-    }
-    last_stamp_ = this_stamp;
-    // TODO - transform these numbers... we're passing the twist numbers
-    // down directly and that's not right
-
-    // move arm up/down
-    lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, msg->pose.position.z);
-    //lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, msg->pose.position.z);
-
-    // rotate wrist around x
-    if (msg->pose.position.x > 0) {
-      hand_cmd_->rotateHandLeft(msg->pose.position.x);
-    } else if (msg->pose.position.x < 0){
-      hand_cmd_->rotateHandRight(msg->pose.position.x);
-    }
-
-    // open/close gripper as y
-    if (msg->pose.position.y > 0) {
-      hand_cmd_->gripperOpen(msg->pose.position.y);
-    } else if (msg->pose.position.y < 0){
-      hand_cmd_->gripperClose(msg->pose.position.y);
-    } else {
-      hand_cmd_->gripperStop();
-    }
-  }
-
   void armRecvThread(std::shared_future<void> local_future)
   {
     std::future_status status;
@@ -510,15 +463,6 @@ private:
       return;
     }
 
-    stop_cv_status = stopJoint(ArmJoint::upper_arm);
-    if (stop_cv_status == std::cv_status::timeout) {
-      response->success = false;
-      response->message = "Upper joint didn't stop";
-      setArmPositionModeDefaults(ArmJoint::upper_arm);
-      arm_zero_service_running_ = false;
-      return;
-    }
-
     std::string error = calibrateLowerArmToCradle();
 
     arm_zero_service_running_ = false;
@@ -545,7 +489,6 @@ private:
   const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS / kPingTimerIntervalMS;
   const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval * kPingRecvPercentage;
 
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr z_pos_cmd_sub_;
   std::unique_ptr<ArmCommand>                                      lift_cmd_;
   std::unique_ptr<ArmReceive>                                      lift_rcv_;
   std::unique_ptr<HandCommand>                                     hand_cmd_;
