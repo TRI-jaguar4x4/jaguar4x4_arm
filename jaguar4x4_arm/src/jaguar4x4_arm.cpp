@@ -477,8 +477,8 @@ private:
   }
 
   // Tunable parameters
-  const uint32_t kPubTimerIntervalMS = 20;
-  const uint32_t kPingTimerIntervalMS = 20;
+  const uint32_t kPubTimerIntervalMS = 100;
+  const uint32_t kPingTimerIntervalMS = 100;
   const uint32_t kWatchdogIntervalMS = 500;
   // During the arm zero service, if we didn't get any data in this amount of
   // time, just give up and assume we aren't currently talking to the robot.
