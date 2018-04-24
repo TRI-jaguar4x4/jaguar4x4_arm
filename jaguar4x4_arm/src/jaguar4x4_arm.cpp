@@ -364,6 +364,52 @@ private:
     } while (status == std::future_status::timeout);
   }
 
+  void setArmPositionModeDefaults()
+  {
+    // We sent ~KP, ~KI, ~KD down to the motor to find out that the default
+    // PID tuning is 30, 2, 0 in closed_loop_count_position.
+    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 30, 2, 0);
+    // We sent ~MAC 1 down to the motor to find out that the default MAC
+    // in closed_loop_count_position is 20000
+    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 20000);
+    // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
+    // in closed_loop_count_position is 1000.
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+    // We sent ~MVEL 1 down to the motor to find out that the default in
+    // closed_loop_count_position is 200.
+    lift_cmd_->setArmPositionControlSpeed(ArmJoint::lower_arm, 200);
+  }
+
+  void setArmSpeedModeDefaults()
+  {
+    // These are tunings that we found we needed to move the lower arm
+    // from any position to do the zero check.
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
+    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
+    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 120000);
+    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
+  }
+
+  std::cv_status stopArm()
+  {
+    // To truly stop the arm, we have to first put it into open loop mode and
+    // then make sure the speed is 0.
+    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
+    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
+
+    std::unique_lock<std::timed_mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_,
+                                               std::defer_lock);
+    bool got_lock = stop_lk.try_lock_for(std::chrono::milliseconds(100));
+    if (!got_lock) {
+      std::cerr << "Couldn't acquire stop mutex!" << std::endl;
+      return std::cv_status::timeout;
+    }
+
+    return arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
+                                                             std::chrono::milliseconds(10000));
+  }
+
   void armJointZero(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
   {
@@ -379,38 +425,19 @@ private:
 
     arm_zero_service_running_ = true;
 
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
-    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
-
-    std::cv_status stop_cv_status;
-    {
-      std::unique_lock<std::timed_mutex> stop_lk(arm_zero_service_wait_for_motor_stop_mutex_, std::defer_lock);
-      bool got_lock = stop_lk.try_lock_for(std::chrono::milliseconds(100));
-      if (!got_lock) {
-        std::cerr << "Couldn't acquire stop mutex!" << std::endl;
-        stop_cv_status = std::cv_status::timeout;
-      } else {
-        stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(stop_lk,
-                                                                           std::chrono::milliseconds(10000));
-      }
-    }
+    std::cv_status stop_cv_status = stopArm();
 
     if (stop_cv_status == std::cv_status::timeout) {
       std::cerr << "Motor didn't stop in " << 10000 << "ms, giving up" << std::endl;
       response->success = false;
       response->message = "Motor didn't stop";
-      lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
+      setArmPositionModeDefaults();
       arm_zero_service_running_ = false;
       return;
     }
 
     std::cerr << "Setting mode to speed" << std::endl;
-    // These are tunings that we found we needed to move the lower arm
-    // from any position to do the zero check.
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_speed);
-    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 4000);
-    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 120000);
-    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 50, 0, 0);
+    setArmSpeedModeDefaults();
 
     static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
@@ -456,41 +483,17 @@ private:
       last_enc_count = current_arm_enc_pos_lower_;
     }
 
-    std::cerr << "Stopped arm" << std::endl;
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::open_loop);
-    lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 0);
-    std::cv_status end_stop_cv_status;
-    {
-      std::unique_lock<std::timed_mutex> end_stop_lk(arm_zero_service_wait_for_motor_stop_mutex_, std::defer_lock);
-      bool got_lock = end_stop_lk.try_lock_for(std::chrono::milliseconds(100));
-      if (!got_lock) {
-        std::cerr << "Couldn't acquire stop lock at end" << std::endl;
-        end_stop_cv_status = std::cv_status::timeout;
-      } else {
-        end_stop_cv_status = arm_zero_service_wait_for_motor_stop_cv_.wait_for(end_stop_lk,
-                                                                               std::chrono::milliseconds(10000));
-      }
-    }
+    std::cv_status end_stop_cv_status = stopArm();
     if (end_stop_cv_status == std::cv_status::timeout) {
       std::cerr << "Timed out waiting for stop at end" << std::endl;
       error = "Timed out waiting for stop at end";
       num_enc_same = 0;
     }
 
-    // We sent ~KP, ~KI, ~KD down to the motor to find out that the default
-    // PID tuning is 30, 2, 0 in closed_loop_count_position.
-    lift_cmd_->setMotorPID(ArmJoint::lower_arm, 30, 2, 0);
-    // We sent ~MAC 1 down to the motor to find out that the default MAC
-    // in closed_loop_count_position is 20000
-    lift_cmd_->setMotorAcceleration(ArmJoint::lower_arm, 20000);
-    // We sent ~MXRPM 1 down to the motor to find out that the default MXRPM
-    // in closed_loop_count_position is 1000.
-    lift_cmd_->setMotorMaxRPM(ArmJoint::lower_arm, 1000);
-    lift_cmd_->setMotorMode(ArmJoint::lower_arm, ArmMotorMode::closed_loop_count_position);
-    // We sent ~MVEL 1 down to the motor to find out that the default in
-    // closed_loop_count_position is 200.
-    lift_cmd_->setArmPositionControlSpeed(ArmJoint::lower_arm, 200);
+    setArmPositionModeDefaults();
     std::cerr << "Back in position control" << std::endl;
+
+    std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
 
     arm_zero_service_running_ = false;
 
