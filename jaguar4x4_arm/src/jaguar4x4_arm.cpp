@@ -229,6 +229,11 @@ private:
     // the joystick, which we use as "resume the robot".  We start out with the
     // robot in eStop, so you always must resume it to start using the robot.
 
+    // Also note that we only process the eStop/Resume button by itself (i.e.
+    // if it is used in combination with other buttons, the other buttons are
+    // ignored).  For all other buttons we allow multiple to be pressed
+    // simultaneously.
+
     if (msg->buttons[11]) {
       // If we see eStop, set our eStopped_ atomic variable to true.  This will
       // ensure that the pingThread does not start accepting commands while we
@@ -255,44 +260,51 @@ private:
       hand_cmd_->resume();
       lift_cmd_->resume();
       eStopped_ = false;
-    } else if (msg->buttons[3]) {
-      // Lower Joint UP
-      if (!msg->buttons[5] || !accepting_commands_) {
-        return;
+    } else {
+      if (msg->buttons[3]) {
+        // Lower Joint UP
+        if (!msg->buttons[5] || !accepting_commands_) {
+          return;
+        }
+        lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, relative_pos_to_move_);
       }
-      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, relative_pos_to_move_);
-    } else if (msg->buttons[1]) {
-      // Lower Joint DOWN
-      if (!msg->buttons[5] || !accepting_commands_) {
-        return;
+      if (msg->buttons[1]) {
+        // Lower Joint DOWN
+        if (!msg->buttons[5] || !accepting_commands_) {
+          return;
+        }
+        lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, -relative_pos_to_move_);
       }
-      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::lower_arm, -relative_pos_to_move_);
-    } else if (msg->buttons[0]) {
-      // Upper Joint UP
-      if (!msg->buttons[5] || !accepting_commands_) {
-        return;
+      if (msg->buttons[0]) {
+        // Upper Joint UP
+        if (!msg->buttons[5] || !accepting_commands_) {
+          return;
+        }
+        lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, relative_pos_to_move_);
       }
-      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, relative_pos_to_move_);
-    } else if (msg->buttons[2]) {
-      // Upper Joint DOWN
-      if (!msg->buttons[5] || !accepting_commands_) {
-        return;
+      if (msg->buttons[2]) {
+        // Upper Joint DOWN
+        if (!msg->buttons[5] || !accepting_commands_) {
+          return;
+        }
+        lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, -relative_pos_to_move_);
       }
-      lift_cmd_->moveArmToRelativeEncoderPos(ArmJoint::upper_arm, -relative_pos_to_move_);
-    } else if (msg->buttons[6]) {
-      // Increase amount
-      relative_pos_to_move_ += 1;
-      if (relative_pos_to_move_ > 50) {
-        relative_pos_to_move_ = 50;
+      if (msg->buttons[6]) {
+        // Increase amount
+        relative_pos_to_move_ += 1;
+        if (relative_pos_to_move_ > 50) {
+          relative_pos_to_move_ = 50;
+        }
+        std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
       }
-      std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
-    } else if (msg->buttons[7]) {
-      // Decrease amount
-      relative_pos_to_move_ -= 1;
-      if (relative_pos_to_move_ < 1) {
-        relative_pos_to_move_ = 1;
+      if (msg->buttons[7]) {
+        // Decrease amount
+        relative_pos_to_move_ -= 1;
+        if (relative_pos_to_move_ < 1) {
+          relative_pos_to_move_ = 1;
+        }
+        std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
       }
-      std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
     }
   }
 
