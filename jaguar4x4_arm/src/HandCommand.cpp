@@ -61,11 +61,12 @@ void HandCommand::gripperStop()
 
 void HandCommand::configure(uint32_t time_interval_ms)
 {
-  std::lock_guard<std::mutex> send_lock(send_mutex);
   // output the following messages every time_interval_ms
   std::string cmd("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# ");
   cmd += std::to_string(time_interval_ms);
   cmd += "\r";
+
+  std::lock_guard<std::mutex> send_lock(send_mutex);
   comm_->sendCommand(cmd);
 }
 

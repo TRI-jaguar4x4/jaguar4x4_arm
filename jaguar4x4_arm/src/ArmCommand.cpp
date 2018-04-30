@@ -81,15 +81,6 @@ void ArmCommand::configure(uint32_t time_interval_ms)
   // output the following messages every time_interval_ms
   std::string cmd("# C_?A_?AI_?C_?FF_?P_?S_?T_?V_# ");
 
-  // time_interval_ms tells us how much time the upper
-  // layer is expecting between updates per datum.  However,
-  // the number that we send down to the Roboteq controller
-  // is how often it queries for any data in the buffer.  Thus
-  // we divide the incoming time by the number of things we
-  // are fetching to have it approximate the time we want.
-
-  time_interval_ms /= 8;
-
   cmd += std::to_string(time_interval_ms);
   cmd += "\r";
 

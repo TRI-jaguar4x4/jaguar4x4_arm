@@ -54,7 +54,7 @@ public:
 
     ping_thread_ = std::thread(&Jaguar4x4Arm::pingThread, this, future_);
 
-    lift_cmd_->configure(kPubTimerIntervalMS);
+    lift_cmd_->configure(kMotorDriverBufferServiceIntervalMS);
 
     // Configure the lower joint to the "defaults" (that is, the values it has
     // stored in EEPROM, what it uses when it comes out of reset).  For the
@@ -79,7 +79,7 @@ public:
     // accept commands but the robot isn't necessarily in eStop.
     // TODO: update the motor eStop state to say "software", "hardware", or "off"
 
-    hand_cmd_->configure(kPubTimerIntervalMS);
+    hand_cmd_->configure(kMotorDriverBufferServiceIntervalMS);
     hand_cmd_->eStop();
 
     arm_recv_thread_ = std::thread(&Jaguar4x4Arm::armRecvThread, this,
@@ -122,9 +122,9 @@ private:
       if (arm_msg) {
         abstractMotorToROS(arm_msg.get(), &lift_pub_msg_->arm);
 
-        if (arm_msg->getType() == AbstractMotorMsg::MessageType::motor_mode) {
-          num_lift_pings_recvd_++;
-        } else if (arm_msg->getType() == AbstractMotorMsg::MessageType::encoder_position) {
+        num_lift_data_recvd_++;
+
+        if (arm_msg->getType() == AbstractMotorMsg::MessageType::encoder_position) {
           // We save off the encoder position so that resuming from eStop
           // drives to the current position, not whatever was in the command
           // buffer.
@@ -170,9 +170,9 @@ private:
       if (hand_msg) {
         abstractMotorToROS(hand_msg.get(), &lift_pub_msg_->hand);
 
-        if (hand_msg->getType() == AbstractMotorMsg::MessageType::motor_mode) {
-          num_hand_pings_recvd_++;
-        } else if (hand_msg->getType() == AbstractMotorMsg::MessageType::encoder_position) {
+        num_hand_data_recvd_++;
+
+        if (hand_msg->getType() == AbstractMotorMsg::MessageType::encoder_position) {
           // We save off the encoder position so that resuming from eStop
           // drives to the current position, not whatever was in the command
           // buffer.
@@ -299,18 +299,30 @@ private:
   void pingThread(std::shared_future<void> local_future)
   {
     std::future_status status;
-    uint32_t num_pings_sent{0};
+
+    // The idea behind the ping thread is to make sure that we are talking to
+    // the robot; if not, we'll stop accepting commands at this layer to make
+    // sure nothing wacky happens.  Any time we get any data from the arm or
+    // hand (in armRecvThread() or handRecvThread()), we consider that a "ping",
+    // and increment the counter accordingly.  We unconditionally send a ping
+    // every interval to ensure that the robot should have responded to
+    // something, though in the current usage this is redundant.  After we
+    // have waited for kWatchdogIntervalMS, we check to make sure we got at
+    // least the number of data that we pinged; if not, we assume we can't
+    // talk to the robot right now and stop accepting commands.
+
+    std::chrono::time_point<std::chrono::system_clock> last_watchdog_check = std::chrono::system_clock::now();
 
     do {
       lift_cmd_->ping();
       hand_cmd_->ping();
-      num_pings_sent++;
 
-      if (num_pings_sent >= kPingsPerWatchdogInterval) {
-
+      std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+      auto diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_watchdog_check);
+      if (diff_ms.count() > kWatchdogIntervalMS) {
         if (!eStopped_) {
-          if (num_lift_pings_recvd_ < kMinPingsExpected
-              || num_hand_pings_recvd_ < kMinPingsExpected) {
+          if (num_lift_data_recvd_ < kMinPingsExpected
+              || num_hand_data_recvd_ < kMinPingsExpected) {
             std::cerr << "Stopped accepting commands" << std::endl;
             accepting_commands_ = false;
             // If the arm zero service is running, we need to notify it to wake
@@ -324,9 +336,9 @@ private:
             accepting_commands_ = true;
           }
         }
-        num_lift_pings_recvd_ = 0;
-        num_hand_pings_recvd_ = 0;
-        num_pings_sent = 0;
+        last_watchdog_check = now;
+        num_lift_data_recvd_ = 0;
+        num_hand_data_recvd_ = 0;
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(kPingTimerIntervalMS));
@@ -483,15 +495,18 @@ private:
   }
 
   // Tunable parameters
+  const uint32_t kMotorDriverBufferServiceIntervalMS = 20;
+  const uint32_t kWatchdogIntervalMS = 200;
+  static constexpr double kPingRecvPercentage = 0.8;
+
   const uint32_t kPubTimerIntervalMS = 100;
-  const uint32_t kPingTimerIntervalMS = 100;
-  const uint32_t kWatchdogIntervalMS = 500;
+
   // During the arm zero service, if we didn't get any data in this amount of
   // time, just give up and assume we aren't currently talking to the robot.
   const uint32_t kZeroNoDataIntervalMS = 500;
-  static constexpr double kPingRecvPercentage = 0.6;
 
   // Constants calculated based on the tunable parameters above
+  const uint32_t kPingTimerIntervalMS = kMotorDriverBufferServiceIntervalMS * 2;
   const uint32_t kPingsPerWatchdogInterval = kWatchdogIntervalMS / kPingTimerIntervalMS;
   const uint32_t kMinPingsExpected = kPingsPerWatchdogInterval * kPingRecvPercentage;
 
@@ -506,8 +521,8 @@ private:
   std::thread                                                      hand_recv_thread_;
   std::promise<void>                                               exit_signal_;
   std::shared_future<void>                                         future_;
-  std::atomic<uint32_t>                                            num_lift_pings_recvd_{0};
-  std::atomic<uint32_t>                                            num_hand_pings_recvd_{0};
+  std::atomic<uint32_t>                                            num_lift_data_recvd_{0};
+  std::atomic<uint32_t>                                            num_hand_data_recvd_{0};
   std::atomic<bool>                                                accepting_commands_{false};
   std::mutex                                                       sensor_frame_mutex_;
   rclcpp::Publisher<jaguar4x4_arm_msgs::msg::Lift>::SharedPtr      lift_pub_;
