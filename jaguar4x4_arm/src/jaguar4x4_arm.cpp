@@ -26,7 +26,7 @@ class Jaguar4x4Arm : public rclcpp::Node
 {
 public:
   Jaguar4x4Arm(const std::string& ip, uint16_t arm_port, uint16_t hand_port)
-    : Node("jaguar4x4Arm")
+    : Node("jaguar4x4arm")
   {
     auto arm_board_comm = std::make_shared<Communication>();
     arm_board_comm->connect(ip, arm_port);
