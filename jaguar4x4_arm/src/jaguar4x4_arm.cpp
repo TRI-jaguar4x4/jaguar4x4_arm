@@ -87,12 +87,21 @@ public:
     hand_recv_thread_ = std::thread(&Jaguar4x4Arm::handRecvThread, this,
                                     future_);
 
-    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>("joy",
-                                                                std::bind(&Jaguar4x4Arm::joyCallback, this, std::placeholders::_1),
-                                                                z_position_qos_profile);
+    // We use a separate callback group for the joystick callback so that a
+    // thread can service this separate from all of the other callbacks,
+    // including services.
+    joy_cb_grp_ = this->create_callback_group(
+        rclcpp::callback_group::CallbackGroupType::MutuallyExclusive);
+    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
+        "joy",
+        std::bind(&Jaguar4x4Arm::joyCallback, this, std::placeholders::_1),
+        z_position_qos_profile,
+        joy_cb_grp_);
 
-    arm_joint_zero_srv_ = this->create_service<std_srvs::srv::Trigger>("arm_joint_zero",
-                                                                       std::bind(&Jaguar4x4Arm::armJointZero, this, std::placeholders::_1, std::placeholders::_2));
+    arm_joint_zero_srv_ = this->create_service<std_srvs::srv::Trigger>(
+        "arm_joint_zero",
+        std::bind(&Jaguar4x4Arm::armJointZero, this,
+                  std::placeholders::_1, std::placeholders::_2));
   }
 
   ~Jaguar4x4Arm()
@@ -238,7 +247,7 @@ private:
       // If we see eStop, set our eStopped_ atomic variable to true.  This will
       // ensure that the pingThread does not start accepting commands while we
       // are eStopped.
-      eStopped_ = true;
+      e_stopped_ = true;
       accepting_commands_ = false;
 
       // eStop the robot, and set the movement to 0.  The latter is so that the
@@ -259,7 +268,7 @@ private:
 
       hand_cmd_->resume();
       lift_cmd_->resume();
-      eStopped_ = false;
+      e_stopped_ = false;
     } else {
       if (msg->buttons[3]) {
         // Lower Joint UP
@@ -332,7 +341,7 @@ private:
       std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
       auto diff_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_watchdog_check);
       if (diff_ms.count() > kWatchdogIntervalMS) {
-        if (!eStopped_) {
+        if (!e_stopped_) {
           if (num_lift_data_recvd_ < kMinPingsExpected
               || num_hand_data_recvd_ < kMinPingsExpected) {
             std::cerr << "Stopped accepting commands" << std::endl;
@@ -437,6 +446,11 @@ private:
         break;
       }
 
+      if (!accepting_commands_) {
+        error += "Stopped accepting commands (eStopped?)";
+        break;
+      }
+
       if (wakeup_reason_ == ZeroServiceWakeupReason::STOPPED_ACCEPTING_COMMANDS) {
         std::cerr << "Stopped talking to robot; aborting zero service" << std::endl;
         error += "Stopped talking to robot ";
@@ -476,9 +490,9 @@ private:
 
     std::cerr << "Called arm Joint zero" << std::endl;
 
-    if (eStopped_) {
+    if (!accepting_commands_) {
       response->success = false;
-      response->message = "eStopped";
+      response->message = "Not accepting commands (eStopped?)";
       return;
     }
 
@@ -540,7 +554,7 @@ private:
   rclcpp::Publisher<jaguar4x4_arm_msgs::msg::Lift>::SharedPtr      lift_pub_;
   std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift>                   lift_pub_msg_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr           joy_sub_;
-  std::atomic<bool>                                                eStopped_{true};
+  std::atomic<bool>                                                e_stopped_{true};
   std::atomic<int64_t>                                             current_arm_enc_pos_lower_;
   std::atomic<int64_t>                                             current_arm_enc_pos_upper_;
   std::atomic<int64_t>                                             current_hand_enc_pos_wrist_;
@@ -557,12 +571,16 @@ private:
   std::timed_mutex                                                 arm_zero_service_wait_for_motor_stop_mutex_;
   std::condition_variable_any                                      arm_zero_service_wait_for_motor_stop_cv_;
   int                                                              relative_pos_to_move_{10};
+  rclcpp::callback_group::CallbackGroup::SharedPtr                 joy_cb_grp_;
 };
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Jaguar4x4Arm>("192.168.0.63", 10001, 10002));
+  rclcpp::executors::MultiThreadedExecutor executor;
+  auto arm = std::make_shared<Jaguar4x4Arm>("192.168.0.63", 10001, 10002);
+  executor.add_node(arm);
+  executor.spin();
   rclcpp::shutdown();
   return 0;
 }
