@@ -14,6 +14,8 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_ros/transform_broadcaster.h"
 
 #include "jaguar4x4_arm_msgs/msg/lift.hpp"
 #include "jaguar4x4_arm/ArmCommand.h"
@@ -39,6 +41,11 @@ public:
 
     hand_cmd_ = std::make_unique<HandCommand>(hand_board_comm);
     hand_rcv_ = std::make_unique<ArmReceive>(hand_board_comm);
+
+    rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
+    tf_qos_profile.depth = 100;
+    tf_pub_ = this->create_publisher<tf2_msgs::msg::TFMessage>("tf",
+                                                               tf_qos_profile);
 
     rmw_qos_profile_t z_position_qos_profile = rmw_qos_profile_sensor_data;
     z_position_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -221,6 +228,31 @@ private:
         }
 
         lift_pub_->publish(local_pub_msg);
+
+        // publish associated tf transform
+        // currently this is a static transform for the exact place we
+        // put the arm for the detection problem
+        auto lift_tf_msg = std::make_shared<geometry_msgs::msg::TransformStamped>();
+        lift_tf_msg->header.frame_id = "base_link";
+        lift_tf_msg->child_frame_id = "camera";
+        // Stuff and publish /tf
+        lift_tf_msg->header.stamp.sec = RCL_NS_TO_S(now);
+        lift_tf_msg->header.stamp.nanosec =
+          now - RCL_S_TO_NS(lift_tf_msg->header.stamp.sec);
+        lift_tf_msg->transform.translation.x = 0.585;
+        lift_tf_msg->transform.translation.y = 0.0;
+        lift_tf_msg->transform.translation.z = 0.286;
+
+        tf2::Quaternion q;
+        q.setRPY(0.0, 0.0, 0.0);
+        lift_tf_msg->transform.rotation.x = q.x();
+        lift_tf_msg->transform.rotation.y = q.y();
+        lift_tf_msg->transform.rotation.z = q.z();
+        lift_tf_msg->transform.rotation.w = q.w();
+
+        tf2_msgs::msg::TFMessage tf_msg;
+        tf_msg.transforms.push_back(*lift_tf_msg);
+        tf_pub_->publish(tf_msg);
       } else {
         std::cerr << "unable to access time\n";
       }
@@ -551,6 +583,7 @@ private:
   std::atomic<uint32_t>                                            num_hand_data_recvd_{0};
   std::atomic<bool>                                                accepting_commands_{false};
   std::mutex                                                       sensor_frame_mutex_;
+  rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr           tf_pub_;
   rclcpp::Publisher<jaguar4x4_arm_msgs::msg::Lift>::SharedPtr      lift_pub_;
   std::shared_ptr<jaguar4x4_arm_msgs::msg::Lift>                   lift_pub_msg_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr           joy_sub_;
