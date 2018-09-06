@@ -144,7 +144,7 @@ private:
         arm_msg = lift_rcv_->getAndParseMessage();
       }
       catch (...) {
-        std::cerr << "threw\n";
+        RCLCPP_INFO(get_logger(), "getAndParseMessage threw exception");
       }
 
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
@@ -193,7 +193,7 @@ private:
         hand_msg = hand_rcv_->getAndParseMessage();
       }
       catch (...) {
-        std::cerr << "threw\n";
+        RCLCPP_INFO(get_logger(), "getAndParseMessage threw exception");
       }
       std::lock_guard<std::mutex> sf_lock_guard(sensor_frame_mutex_);
       if (hand_msg) {
@@ -267,7 +267,7 @@ private:
         tf_msg.transforms.push_back(*lift_tf_msg);
         tf_pub_->publish(tf_msg);
       } else {
-        std::cerr << "unable to access time\n";
+        RCLCPP_INFO(get_logger(), "Unable to access time, skipping tf publish");
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(kPubTimerIntervalMS));
@@ -300,7 +300,7 @@ private:
       lift_cmd_->eStop();
       hand_cmd_->eStop();
 
-      std::cerr << "ESTOP" << std::endl;
+      RCLCPP_INFO(get_logger(), "ESTOP");
     } else if (msg->buttons[10]) {
       // Resume the arm.  Since the motors are in position control, we drive it
       // to whatever the current arm position is so that it doesn't continue to
@@ -349,7 +349,7 @@ private:
         if (relative_pos_to_move_ > 50) {
           relative_pos_to_move_ = 50;
         }
-        std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
+        RCLCPP_INFO(get_logger(), "Now moving arm by %d", relative_pos_to_move_);
       }
       if (msg->buttons[7]) {
         // Decrease amount
@@ -357,7 +357,7 @@ private:
         if (relative_pos_to_move_ < 1) {
           relative_pos_to_move_ = 1;
         }
-        std::cerr << "Now moving arm by " << relative_pos_to_move_ << std::endl;
+        RCLCPP_INFO(get_logger(), "Now moving arm by %d", relative_pos_to_move_);
       }
     }
   }
@@ -389,7 +389,7 @@ private:
         if (!e_stopped_) {
           if (num_lift_data_recvd_ < kMinPingsExpected
               || num_hand_data_recvd_ < kMinPingsExpected) {
-            std::cerr << "Stopped accepting commands" << std::endl;
+            RCLCPP_INFO(get_logger(), "Stopped accepting commands");
             accepting_commands_ = false;
             // If the arm zero service is running, we need to notify it to wake
             // up and deal with the fact that we stopped accepting commands.
@@ -397,7 +397,7 @@ private:
             encoder_pos_cv_.notify_one();
           } else {
             if (!accepting_commands_) {
-              std::cerr << "accepting commands" << std::endl;
+              RCLCPP_INFO(get_logger(), "accepting commands");
             }
             accepting_commands_ = true;
           }
@@ -451,7 +451,7 @@ private:
                                                std::defer_lock);
     bool got_lock = stop_lk.try_lock_for(std::chrono::milliseconds(100));
     if (!got_lock) {
-      std::cerr << "Couldn't acquire stop mutex!" << std::endl;
+      RCLCPP_INFO(get_logger(), "Couldn't acquire mutex to wait for motor stop");
       return std::cv_status::timeout;
     }
 
@@ -461,14 +461,14 @@ private:
 
   std::string calibrateLowerArmToCradle()
   {
-    std::cerr << "Setting mode to speed" << std::endl;
+    RCLCPP_INFO(get_logger(), "Setting motor mode to speed");
     setArmSpeedModeDefaults(ArmJoint::lower_arm);
 
     static const int NUM_SAME_ENC_COUNTS = 10;
     int num_enc_same = 0;
     std::string error;
 
-    std::cerr << "Lowering arm" << std::endl;
+    RCLCPP_INFO(get_logger(), "Lowering arm");
 
     lift_cmd_->moveArmAtSpeed(ArmJoint::lower_arm, 150);
 
@@ -486,7 +486,7 @@ private:
       std::cv_status cv_status = encoder_pos_cv_.wait_for(lk,
                                                           std::chrono::milliseconds(kZeroNoDataIntervalMS));
       if (cv_status == std::cv_status::timeout) {
-        std::cerr << "No data in " << kZeroNoDataIntervalMS << "ms, giving up" << std::endl;
+        RCLCPP_INFO(get_logger(), "No data in %u ms, giving up", kZeroNoDataIntervalMS);
         error += "No data before timeout ";
         break;
       }
@@ -497,7 +497,7 @@ private:
       }
 
       if (wakeup_reason_ == ZeroServiceWakeupReason::STOPPED_ACCEPTING_COMMANDS) {
-        std::cerr << "Stopped talking to robot; aborting zero service" << std::endl;
+        RCLCPP_INFO(get_logger(), "Stopped talking to robot; aborting zero service");
         error += "Stopped talking to robot ";
         break;
       }
@@ -512,13 +512,13 @@ private:
 
     std::cv_status end_stop_cv_status = stopJoint(ArmJoint::lower_arm);
     if (end_stop_cv_status == std::cv_status::timeout) {
-      std::cerr << "Timed out waiting for stop at end" << std::endl;
+      RCLCPP_INFO(get_logger(), "Timed out waiting for stop at end");
       error += "Timed out waiting for stop at end ";
       num_enc_same = 0;
     }
 
     if (num_enc_same == NUM_SAME_ENC_COUNTS) {
-      std::cerr << "Zero encoder position: " << last_enc_count << std::endl;
+      RCLCPP_INFO(get_logger(), "Zero encoding position: %ld", last_enc_count);
     } else {
       error += "Bad calibration; arm was moving ";
     }
@@ -533,7 +533,7 @@ private:
   {
     (void)request;
 
-    std::cerr << "Called arm Joint zero" << std::endl;
+    RCLCPP_INFO(get_logger(), "Called arm joint zero");
 
     if (!accepting_commands_) {
       response->success = false;
