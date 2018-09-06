@@ -1,2 +1,1 @@
-[Highly confidential]
-Motor board message for jaguar4x4 arm
+# ROS2 Motor board messages for jaguar4x4 arm
