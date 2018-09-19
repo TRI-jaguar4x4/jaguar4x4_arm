@@ -288,6 +288,13 @@ private:
     // ignored).  For all other buttons we allow multiple to be pressed
     // simultaneously.
 
+    if (msg->buttons.size() < 12) {
+      // When coming out of power-up, the joystick node sometimes publishes
+      // bogus default messages that don't have enough buttons.  Counteract
+      // that by only allowing this joy callback if there are enough buttons.
+      return;
+    }
+
     if (msg->buttons[11]) {
       // If we see eStop, set our eStopped_ atomic variable to true.  This will
       // ensure that the pingThread does not start accepting commands while we
